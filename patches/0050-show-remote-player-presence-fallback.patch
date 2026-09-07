@@ -2,12 +2,14 @@ diff --git a/character-controller.js b/character-controller.js
 index c4b2db7..1b9a017 100644
 --- a/character-controller.js
 +++ b/character-controller.js
-@@ -63,7 +63,18 @@ const localArray4 = [0, 0, 0, 0];
+@@ -63,7 +63,20 @@ const localArray4 = [0, 0, 0, 0];
  
  const zeroVector = new THREE.Vector3(0, 0, 0);
  const upVector = new THREE.Vector3(0, 1, 0);
  
-+const remotePresenceGeometry = new THREE.CapsuleGeometry(0.22, 0.92, 4, 8);
++// The pinned Webaverse Three build predates CapsuleGeometry.  This cylinder
++// keeps the remote-player fallback visible without requiring a newer renderer.
++const remotePresenceGeometry = new THREE.CylinderGeometry(0.22, 0.22, 1.36, 8);
 +const remotePresenceMaterial = new THREE.MeshBasicMaterial({color: 0x30d5ff});
 +
 +const _makeRemotePresenceMarker = () => {
