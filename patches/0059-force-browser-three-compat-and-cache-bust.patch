@@ -1,0 +1,225 @@
+diff --git a/index.html b/index.html
+--- a/index.html
++++ b/index.html
+@@ -22,8 +22,8 @@
+ <body>
+   <div id=iframe-container></div>
+   <div id="root"></div>
+-  <script type=module src="/pre.js"></script>
+-  <script type=module src="/src/main.jsx"></script>
++  <script type=module src="/pre.js?jarvis-runtime=66"></script>
++  <script type=module src="/src/main.jsx?jarvis-runtime=66"></script>
+ </body>
+ 
+ </html>
+diff --git a/index.mjs b/index.mjs
+--- a/index.mjs
++++ b/index.mjs
+@@ -132,6 +132,11 @@ async function main() {
+   const viteServer = await vite.createServer({
+     configFile: isProduction ? false : undefined,
+     plugins: isProduction ? [metaversefilePlugin()] : undefined,
++    resolve: isProduction ? {
++      alias: [
++        {find: /^three$/, replacement: path.join(cwd, 'jarvis-three-compat.js')},
++      ],
++    } : undefined,
+     server: {
+       middlewareMode: isProduction ? 'ssr' : 'html',
+       force: !isProduction,
+diff --git a/jarvis-three-compat.js b/jarvis-three-compat.js
+new file mode 100644
+--- /dev/null
++++ b/jarvis-three-compat.js
+@@ -0,0 +1,31 @@
++import * as BaseThree from './packages/three/build/three.module.js';
++
++export * from './packages/three/build/three.module.js';
++
++// Webaverse is pinned to Three r134, which does not export CapsuleGeometry.
++// Some legacy client paths still ask for THREE.CapsuleGeometry. Keep one
++// browser-visible compatibility constructor at the Vite resolution boundary so
++// every bare `three` import receives the same safe API.
++class CapsuleGeometry extends BaseThree.CylinderGeometry {
++  constructor(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
++    const safeRadius = Number.isFinite(radius) ? Math.max(0, radius) : 1;
++    const safeLength = Number.isFinite(length) ? Math.max(0, length) : 1;
++    const safeRadialSegments = Number.isFinite(radialSegments)
++      ? Math.max(3, Math.floor(radialSegments))
++      : 8;
++    super(safeRadius, safeRadius, safeLength + safeRadius * 2, safeRadialSegments, 1, false);
++    this.type = 'CapsuleGeometry';
++    this.parameters = {
++      radius: safeRadius,
++      length: safeLength,
++      capSegments,
++      radialSegments: safeRadialSegments,
++    };
++  }
++}
++
++const ThreeCompat = {...BaseThree, CapsuleGeometry};
++
++export {CapsuleGeometry};
++export default ThreeCompat;
+diff --git a/src/main.jsx b/src/main.jsx
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -1,6 +1,6 @@
+ import React from 'react';
+ import ReactDOM from 'react-dom';
+ 
+-import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx?jarvis-runtime=64';
++import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx?jarvis-runtime=66';
+ import {installPtBrLocalization} from './jarvis-compat/pt-BR.js';
+ 
+@@ -12,7 +12,7 @@ const loadWebaverseModule = async () => {
+ const loadWebaverseModule = async () => {
+   const attempts = [
+-    {delay: 0, load: () => import('./components/app/App.jsx?jarvis-retry=0&jarvis-runtime=64')},
+-    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=64')},
+-    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=64')},
++    {delay: 0, load: () => import('./components/app/App.jsx?jarvis-retry=0&jarvis-runtime=66')},
++    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=66')},
++    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=66')},
+   ];
+   let lastError;
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -4,12 +4,12 @@ import classnames from 'classnames';
+ 
+ import { defaultPlayerSpec } from '../../../constants';
+ 
+-import game from '../../../game.js?jarvis-runtime=64';
+-import Webaverse from '../../../webaverse.js?jarvis-fw4=19&jarvis-runtime=64';
+-import universe from '../../../universe.js?jarvis-runtime=64';
+-import metaversefileApi from '../../../metaversefile-api.js?jarvis-runtime=64';
+-import cameraManager from '../../../camera-manager.js?jarvis-runtime=64';
+-import { world } from '../../../world.js?jarvis-runtime=64';
++import game from '../../../game.js?jarvis-runtime=66';
++import Webaverse from '../../../webaverse.js?jarvis-fw4=19&jarvis-runtime=66';
++import universe from '../../../universe.js?jarvis-runtime=66';
++import metaversefileApi from '../../../metaversefile-api.js?jarvis-runtime=66';
++import cameraManager from '../../../camera-manager.js?jarvis-runtime=66';
++import { world } from '../../../world.js?jarvis-runtime=66';
+ 
+ import { IoHandler, registerIoEventHandler, unregisterIoEventHandler } from '../general/io-handler';
+ import { ZoneTitleCard } from '../general/zone-title-card';
+@@ -17,7 +17,7 @@ import { LoadingBox } from '../../LoadingBox.jsx';
+ import { PlayMode } from '../play-mode';
+ import JarvisSocialDashboard from '../../JarvisSocialDashboardSafe.jsx';
+ import QuickMenu from '../../QuickMenu.jsx';
+-import {DomRenderer} from '../../DomRenderer.jsx?jarvis-runtime=64';
++import {DomRenderer} from '../../DomRenderer.jsx?jarvis-runtime=66';
+ 
+ import styles from './App.module.css';
+ import '../../fonts.css';
+diff --git a/camera-manager.js b/camera-manager.js
+--- a/camera-manager.js
++++ b/camera-manager.js
+@@ -4,7 +4,7 @@ import {getRenderer, camera, scene} from './renderer.js';
+ import physicsManager from './physics-manager.js';
+ import {shakeAnimationSpeed} from './constants.js';
+ import Simplex from './simplex-noise.js';
+-import {playersManager} from './players-manager.js?jarvis-runtime=64';
++import {playersManager} from './players-manager.js?jarvis-runtime=66';
+ // import alea from './alea.js';
+ // import * as sounds from './sounds.js';
+ import {minFov, maxFov, midFov} from './constants.js';
+diff --git a/game.js b/game.js
+--- a/game.js
++++ b/game.js
+@@ -15,10 +15,10 @@ import {world} from './world.js';
+ import cameraManager from './camera-manager.js';
+ import ioManager from './io-manager.js';
+ import {scene, camera} from './renderer.js';
+-import metaversefileApi from './metaversefile-api.js';
++import metaversefileApi from './metaversefile-api.js?jarvis-runtime=66';
+ import * as metaverseModules from './metaverse-modules.js';
+ import loadoutManager from './jarvis-social-loadout.js';
+ import * as sounds from './sounds.js';
+-import {playersManager} from './players-manager.js?jarvis-runtime=64';
++import {playersManager} from './players-manager.js?jarvis-runtime=66';
+ import physicsManager from './physics-manager.js';
+ import raycastManager from './raycast-manager.js';
+ import Avatar from './avatars/avatars.js';
+diff --git a/metaversefile-api.js b/metaversefile-api.js
+--- a/metaversefile-api.js
++++ b/metaversefile-api.js
+@@ -30,11 +30,11 @@ import * as avatarCruncher from './avatar-cruncher.js';
+ import * as avatarSpriter from './avatar-spriter.js';
+ import {chatManager} from './chat-manager.js';
+ import loreAI from './ai/lore/lore-ai.js';
+-import npcManager from './npc-manager.js?jarvis-runtime=64';
++import npcManager from './npc-manager.js?jarvis-runtime=66';
+ import mobManager from './mob-manager.js';
+ import universe from './universe.js';
+ import {PathFinder} from './npc-utils.js';
+-import {playersManager} from './players-manager.js?jarvis-runtime=64';
++import {playersManager} from './players-manager.js?jarvis-runtime=66';
+ import loaders from './loaders.js';
+ import * as voices from './voices.js';
+ import * as procgen from './procgen/procgen.js';
+diff --git a/npc-manager.js b/npc-manager.js
+--- a/npc-manager.js
++++ b/npc-manager.js
+@@ -1,8 +1,8 @@
+ import * as THREE from 'three';
+ import Avatar from './avatars/avatars.js';
+ import physicsManager from './physics-manager.js';
+-import {LocalPlayer} from './character-controller.js?jarvis-runtime=64';
+-import {playersManager} from './players-manager.js?jarvis-runtime=64';
++import {LocalPlayer} from './character-controller.js?jarvis-runtime=66';
++import {playersManager} from './players-manager.js?jarvis-runtime=66';
+ import * as voices from './voices.js';
+ import {world} from './world.js';
+ import {chatManager} from './chat-manager.js';
+diff --git a/players-manager.js b/players-manager.js
+--- a/players-manager.js
++++ b/players-manager.js
+@@ -3,7 +3,7 @@ player objects load their own avatar and apps using this binding */
+ 
+ // import * as THREE from 'three';
+ import * as Z from 'zjs';
+-import {LocalPlayer, RemotePlayer} from './character-controller.js?jarvis-runtime=64';
++import {LocalPlayer, RemotePlayer} from './character-controller.js?jarvis-runtime=66';
+ import metaversefileApi from 'metaversefile';
+ import {makeId} from './util.js';
+ import {initialPosY, playersMapName} from './constants.js';
+diff --git a/src/DomRenderer.jsx b/src/DomRenderer.jsx
+--- a/src/DomRenderer.jsx
++++ b/src/DomRenderer.jsx
+@@ -3,7 +3,7 @@ import React, {useState, useEffect, useRef} from 'react';
+ import gameManager from '../game.js';
+ import {camera} from '../renderer.js';
+ import cameraManager from '../camera-manager.js';
+-import {playersManager} from '../players-manager.js?jarvis-runtime=64';
++import {playersManager} from '../players-manager.js?jarvis-runtime=66';
+ 
+ // import {CharacterBanner} from './CharacterBanner.jsx';
+ import domRenderEngine, {DomRenderEngine} from '../dom-renderer.jsx';
+diff --git a/universe.js b/universe.js
+--- a/universe.js
++++ b/universe.js
+@@ -13,7 +13,7 @@ import {loadOverworld} from './overworld.js';
+ import physicsManager from './physics-manager.js';
+ import physxWorkerManager from './physx-worker-manager.js';
+ import physx from './physx.js';
+-import {playersManager} from './players-manager.js?jarvis-runtime=64';
++import {playersManager} from './players-manager.js?jarvis-runtime=66';
+ import sceneNames from './scenes/scenes.json';
+ import {parseQuery} from './util.js';
+ import {world} from './world.js';
+diff --git a/webaverse.js b/webaverse.js
+--- a/webaverse.js
++++ b/webaverse.js
+@@ -12,7 +12,7 @@ import physicsManager from './physics-manager.js';
+ import {world} from './world.js';
+ import cameraManager from './camera-manager.js';
+ import game from './game.js';
+-import {playersManager} from './players-manager.js?jarvis-runtime=64';
++import {playersManager} from './players-manager.js?jarvis-runtime=66';
+ import postProcessing from './post-processing.js';
+ import particleSystemManager from './jarvis-particle-system.js';
+ import {
