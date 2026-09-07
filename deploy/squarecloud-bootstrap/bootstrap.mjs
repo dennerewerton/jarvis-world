@@ -4,12 +4,12 @@ import path from 'node:path';
 
 const upstreamRepository = 'https://github.com/webaverse/app.git';
 const upstreamRevision = '561630539fe2055c117309c3d24c2cfc4d6763d5';
-const release = 'fw70-pilot-2026-09-07.65';
+const release = 'fw70-pilot-2026-09-07.66';
 const deploymentRoot = path.resolve('.');
 const runtimeRoot = path.join(deploymentRoot, '.webaverse-runtime');
 const patchesRoot = path.join(deploymentRoot, 'patches');
 const cityAssetsRoot = path.join(deploymentRoot, 'city-assets');
-const lastValidatedRuntimePatch = '0058-normalize-player-runtime-module-chain.patch';
+const lastValidatedRuntimePatch = '0059-force-browser-three-compat-and-cache-bust.patch';
 const readyMarker = path.join(runtimeRoot, `.ready-${release}`);
 
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
@@ -24,24 +24,21 @@ const run = (command, args, options = {}) => new Promise((resolve, reject) => {
   });
 });
 
-const installThreeCapsuleCompat = appRoot => {
-  const threeModulePath = path.join(appRoot, 'packages', 'three', 'build', 'three.module.js');
-  if (!fs.existsSync(threeModulePath)) {
-    throw new Error('Pinned Three ESM build is missing from the Webaverse runtime.');
-  }
+const patchThreeRoot = threeRoot => {
+  const threeModulePath = path.join(threeRoot, 'build', 'three.module.js');
+  if (!fs.existsSync(threeModulePath)) return false;
 
   let source = fs.readFileSync(threeModulePath, 'utf8');
   const shimMarker = 'class CapsuleGeometry extends CylinderGeometry';
   if (!source.includes(shimMarker)) {
     const exportIndex = source.lastIndexOf('export {');
     if (exportIndex < 0) {
-      throw new Error('Unable to locate the Three ESM export block for CapsuleGeometry compatibility.');
+      throw new Error(`Unable to locate the Three ESM export block at ${threeModulePath}.`);
     }
 
     const shim = `
 // Jarvis compatibility: Webaverse pins Three r134, which does not export
 // THREE.CapsuleGeometry. Some runtime/client paths can still request it.
-// Keep the public constructor available without upgrading the renderer stack.
 class CapsuleGeometry extends CylinderGeometry {
   constructor(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
     const safeRadius = Number.isFinite(radius) ? Math.max(0, radius) : 1;
@@ -77,12 +74,10 @@ class CapsuleGeometry extends CylinderGeometry {
 
   const verified = fs.readFileSync(threeModulePath, 'utf8');
   if (!verified.includes(shimMarker) || !verified.includes('export { CapsuleGeometry,')) {
-    throw new Error('Three CapsuleGeometry compatibility shim was not installed correctly.');
+    throw new Error(`Three CapsuleGeometry compatibility shim was not installed at ${threeModulePath}.`);
   }
 
-  // Vite uses the ESM build above, but also keep the CommonJS/UMD entry safe for
-  // packages that resolve Three through package.json "main" during startup.
-  const threeUmdPath = path.join(appRoot, 'packages', 'three', 'build', 'three.js');
+  const threeUmdPath = path.join(threeRoot, 'build', 'three.js');
   if (fs.existsSync(threeUmdPath)) {
     let umd = fs.readFileSync(threeUmdPath, 'utf8');
     const umdMarker = 'exports.CapsuleGeometry = CapsuleGeometry;';
@@ -113,7 +108,27 @@ class CapsuleGeometry extends CylinderGeometry {
     }
   }
 
-  console.log('[Jarvis World] installed Three CapsuleGeometry compatibility shim');
+  return true;
+};
+
+const installThreeCapsuleCompat = appRoot => {
+  const candidates = [
+    path.join(appRoot, 'packages', 'three'),
+    path.join(appRoot, 'node_modules', 'three'),
+  ];
+  const seen = new Set();
+  let patched = 0;
+  for (const candidate of candidates) {
+    if (!fs.existsSync(candidate)) continue;
+    const realPath = fs.realpathSync(candidate);
+    if (seen.has(realPath)) continue;
+    seen.add(realPath);
+    if (patchThreeRoot(candidate)) patched += 1;
+  }
+  if (!patched) {
+    throw new Error('No Three installation was available for CapsuleGeometry compatibility.');
+  }
+  console.log(`[Jarvis World] installed Three CapsuleGeometry compatibility shim in ${patched} resolved package root(s)`);
 };
 
 const prepareRuntime = async () => {
@@ -137,8 +152,6 @@ const prepareRuntime = async () => {
   ], {cwd: runtimeRoot});
   const appRoot = runtimeRoot;
   const patches = fs.readdirSync(patchesRoot)
-    // Square Cloud keeps application storage between deploys. Do not allow a
-    // stale or partially uploaded future patch from an older ZIP to execute.
     .filter(name => name.endsWith('.patch') && name <= lastValidatedRuntimePatch)
     .sort();
   for (const patchName of patches) {
@@ -158,10 +171,16 @@ const prepareRuntime = async () => {
     ], {cwd: appRoot});
   }
 
-  // The pinned Webaverse renderer uses Three r134. Install a compatibility
-  // constructor at the dependency boundary so any remaining legacy or cached
-  // module that asks for THREE.CapsuleGeometry cannot crash the Activity.
   installThreeCapsuleCompat(appRoot);
+
+  const browserCompatPath = path.join(appRoot, 'jarvis-three-compat.js');
+  if (!fs.existsSync(browserCompatPath)) {
+    throw new Error('Browser Three compatibility module is missing after the Jarvis patch queue.');
+  }
+  const browserCompatSource = fs.readFileSync(browserCompatPath, 'utf8');
+  if (!browserCompatSource.includes('class CapsuleGeometry extends BaseThree.CylinderGeometry')) {
+    throw new Error('Browser Three compatibility module does not expose CapsuleGeometry.');
+  }
 
   const characterControllerPath = path.join(appRoot, 'character-controller.js');
   const characterControllerSource = fs.readFileSync(characterControllerPath, 'utf8');
@@ -210,21 +229,21 @@ const prepareRuntime = async () => {
     '--no-fund',
   ], {cwd: appRoot});
 
-  const installedThreeModulePath = path.join(
-    appRoot,
-    'node_modules',
-    'three',
-    'build',
-    'three.module.js',
-  );
-  if (
-    !fs.existsSync(installedThreeModulePath)
-    || !fs.readFileSync(installedThreeModulePath, 'utf8').includes(
-      'class CapsuleGeometry extends CylinderGeometry',
-    )
-  ) {
-    throw new Error('Installed Three package lost the Jarvis CapsuleGeometry compatibility shim.');
-  }
+  installThreeCapsuleCompat(appRoot);
+
+  await run(process.execPath, [
+    '--input-type=module',
+    '--eval',
+    `import * as THREE from 'three';
+if (typeof THREE.CapsuleGeometry !== 'function') {
+  throw new Error('Resolved Three package does not export CapsuleGeometry');
+}
+const geometry = new THREE.CapsuleGeometry(0.22, 0.92, 4, 8);
+if (!geometry || geometry.type !== 'CapsuleGeometry') {
+  throw new Error('Resolved Three CapsuleGeometry constructor failed');
+}
+console.log('[Jarvis World] verified resolved Three CapsuleGeometry constructor');`,
+  ], {cwd: appRoot});
 
   fs.writeFileSync(readyMarker, `${release}\n`, {encoding: 'utf8', flag: 'wx'});
 };
