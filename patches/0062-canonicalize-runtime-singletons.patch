@@ -1,0 +1,53 @@
+diff --git a/jarvis-runtime-singletons.mjs b/jarvis-runtime-singletons.mjs
+new file mode 100644
+--- /dev/null
++++ b/jarvis-runtime-singletons.mjs
+@@ -0,0 +1,29 @@
++// Runtime singletons must have one module identity despite legacy cache tags.
++const singletonFiles = new Set([
++  'metaversefile-api.js', 'players-manager.js', 'character-controller.js',
++  'player-avatar-binding.js', 'npc-manager.js', 'game.js', 'webaverse.js',
++  'universe.js', 'camera-manager.js', 'world.js',
++]);
++export function canonicalRuntimeImport(source) {
++  if (!source.startsWith('.') && !source.startsWith('/')) return source;
++  const separator = source.indexOf('?');
++  if (separator < 0) return source;
++  const pathname = source.slice(0, separator);
++  if (!singletonFiles.has(pathname.slice(pathname.lastIndexOf('/') + 1))) return source;
++  const query = new URLSearchParams(source.slice(separator + 1));
++  query.delete('jarvis-runtime');
++  query.delete('jarvis-fw4');
++  const rest = query.toString();
++  return pathname + (rest ? '?' + rest : '');
++}
++export default function runtimeSingletonPlugin() {
++  return {
++    name: 'jarvis-runtime-singletons',
++    enforce: 'pre',
++    async resolveId(source, importer) {
++      const canonical = canonicalRuntimeImport(source);
++      if (canonical === source) return null;
++      return this.resolve(canonical, importer, {skipSelf: true});
++    },
++  };
++}
+diff --git a/index.mjs b/index.mjs
+--- a/index.mjs
++++ b/index.mjs
+@@ -7,6 +7,7 @@
+ import vite from 'vite';
+ import wsrtc from 'wsrtc/wsrtc-server.mjs';
+ import metaversefilePlugin from 'metaversefile/plugins/rollup.js';
++import runtimeSingletonPlugin from './jarvis-runtime-singletons.mjs';
+ 
+ const SERVER_ADDR = '0.0.0.0';
+ const JARVIS_SHARED_ROOM = 'jarvis-city';
+@@ -133,6 +134,6 @@
+   const viteServer = await vite.createServer({
+     configFile: isProduction ? false : undefined,
+-    plugins: isProduction ? [metaversefilePlugin()] : undefined,
++    plugins: isProduction ? [runtimeSingletonPlugin(), metaversefilePlugin()] : undefined,
+     resolve: isProduction ? {
+       alias: [
+         {find: /^three$/, replacement: path.join(cwd, 'jarvis-three-compat.js')},
