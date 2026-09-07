@@ -1,0 +1,74 @@
+diff --git a/game.js b/game.js
+--- a/game.js
++++ b/game.js
+@@ -21,6 +21,5 @@
+ import * as sounds from './sounds.js';
+ import {playersManager} from './players-manager.js';
+ import physicsManager from './physics-manager.js';
+-import npcManager from './npc-manager.js';
+ import raycastManager from './raycast-manager.js';
+ import Avatar from './avatars/avatars.js';
+@@ -1350,23 +1350,7 @@ class GameManager extends EventTarget {
+   }
+   menuSwitchCharacter() {
+-    sounds.playSoundName('menuReady');
+-
+-    const npc = npcManager.npcs[0];
+-    if (npc) {
+-      // console.log('check npc', npc);
+-      
+-      const localPlayer = playersManager.getLocalPlayer();
+-      localPlayer.isLocalPlayer = false;
+-      localPlayer.isNpcPlayer = true;
+-
+-      npc.isLocalPlayer = true;
+-      npc.isNpcPlayer = false;
+-
+-      const npcIndex = npcManager.npcs.indexOf(npc);
+-      npcManager.npcs[npcIndex] = localPlayer;
+-
+-      playersManager.setLocalPlayer(npc);
+-    }
++    // NPC possession is a retired development mode.
++    return false;
+   }
+   isFlying() {
+     const localPlayer = playersManager.getLocalPlayer();
+diff --git a/io-manager.js b/io-manager.js
+--- a/io-manager.js
++++ b/io-manager.js
+@@ -21,5 +21,4 @@
+ // import physx from './physx.js';
+ // import {airFriction, flyFriction} from './constants.js';
+-import storyManager from './story.js';
+ // import domRenderer from './dom-renderer.jsx';
+ import raycastManager from './raycast-manager.js';
+@@ -477,8 +476,6 @@ ioManager.keydown = e => {
+     } */
+     case 71: { // G
+-      // game.menuDrop();
+-      // game.menuGDown();
+-      game.menuSwitchCharacter();
++      // NPC possession is unavailable in the social-and-parkour world.
+       break;
+     }
+     case 86: { // V
+@@ -607,14 +604,10 @@ ioManager.keypress = e => {
+   // nothing
+ };
+ ioManager.wheel = e => {
+-  if (storyManager.handleWheel(e)) {
+-    // nothing
+-  } else {
+-    if (physicsScene.getPhysicsEnabled()) {
+-      const renderer = getRenderer();
+-      if (renderer && (e.target === renderer.domElement || e.target.id === 'app')) {
+-        cameraManager.handleWheelEvent(e);
+-      }
++  if (physicsScene.getPhysicsEnabled()) {
++    const renderer = getRenderer();
++    if (renderer && (e.target === renderer.domElement || e.target.id === 'app')) {
++      cameraManager.handleWheelEvent(e);
+     }
+   }
+ };

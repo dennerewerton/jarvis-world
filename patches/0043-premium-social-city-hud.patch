@@ -1,0 +1,312 @@
+diff --git a/src/SocialHud.jsx b/src/SocialHud.jsx
+index 74c915b4..510f5b96 100644
+--- a/src/SocialHud.jsx
++++ b/src/SocialHud.jsx
+@@ -2,6 +2,7 @@ import React, {useContext, useState} from 'react';
+ 
+ import {AppContext} from './components/app';
+ import styles from './SocialHud.module.css';
++import premium from './SocialHudPremium.module.css';
+ 
+ const HudIcon = ({kind}) => (
+   <span className={`${styles.icon} ${styles[`${kind}Icon`]}`} aria-hidden="true">
+@@ -24,7 +25,15 @@ export default function SocialHud() {
+ 
+   return (
+-    <nav className={styles.hud} aria-label="Acoes sociais">
+-      <section className={styles.surface}>
++    <nav className={`${styles.hud} ${premium.hud}`} aria-label="Acoes sociais">
++      <section className={premium.profilePanel} aria-label="Jarvis World social">
++        <span className={premium.profileRing} aria-hidden="true">J</span>
++        <span className={premium.profileCopy}>
++          <small>JARVIS WORLD</small>
++          <strong>Jarvis City</strong>
++          <em><i /> ONLINE</em>
++        </span>
++      </section>
++      <section className={`${styles.surface} ${premium.socialDock}`}>
+         <div className={styles.brand}>
+           <span className={styles.brandMark} aria-hidden="true">J</span>
+           <span className={styles.brandCopy}>
+@@ -72,5 +81,20 @@ export default function SocialHud() {
+         </div>
+       </section>
++      <button type="button" className={premium.chatPrompt} onClick={openChat} aria-label="Abrir chat">
++        <span aria-hidden="true">&#128172;</span>
++        <span>Digite uma mensagem...</span>
++        <kbd>ENTER</kbd>
++      </button>
++      <aside className={premium.movementDock} aria-label="Controles de movimento">
++        <div><span className={`${premium.moveIcon} ${premium.runIcon}`} aria-hidden="true" /><strong>Correr</strong><kbd>SHIFT</kbd></div>
++        <div><span className={`${premium.moveIcon} ${premium.jumpIcon}`} aria-hidden="true" /><strong>Pular</strong><kbd>ESPACO</kbd></div>
++      </aside>
++      <div className={premium.statusLine} aria-label="Status do mundo">
++        <span className={premium.signal} aria-hidden="true" />
++        <span>Jarvis City</span>
++        <i aria-hidden="true" />
++        <span>Social</span>
++      </div>
+     </nav>
+   );
+ }
+diff --git a/src/SocialHudPremium.module.css b/src/SocialHudPremium.module.css
+new file mode 100644
+index 00000000..3d5ed1f0
+--- /dev/null
++++ b/src/SocialHudPremium.module.css
+@@ -0,0 +1,255 @@
++.hud {
++  position: fixed;
++  z-index: 1000;
++  inset: 0;
++  width: auto;
++  height: auto;
++  pointer-events: none;
++  color: #f5fbff;
++  font-family: Inter, system-ui, sans-serif;
++}
++
++.profilePanel,
++.socialDock,
++.chatPrompt,
++.movementDock,
++.statusLine {
++  pointer-events: auto;
++}
++
++.profilePanel {
++  position: fixed;
++  top: 22px;
++  left: 22px;
++  display: flex;
++  align-items: center;
++  gap: 13px;
++  min-width: 250px;
++  padding: 12px 18px 12px 12px;
++  border: 1px solid rgba(86, 218, 255, .82);
++  border-radius: 18px;
++  background: linear-gradient(135deg, rgba(8, 23, 54, .92), rgba(15, 73, 120, .78));
++  box-shadow: 0 10px 28px rgba(0, 0, 0, .34), inset 0 0 18px rgba(64, 200, 255, .14);
++}
++
++.profileRing {
++  display: grid;
++  place-items: center;
++  width: 48px;
++  height: 48px;
++  border: 3px solid #75ecff;
++  border-radius: 50%;
++  color: #dffaff;
++  font-size: 24px;
++  font-weight: 900;
++  background: radial-gradient(circle at 35% 30%, #4ae5ff, #16478a 68%);
++  box-shadow: 0 0 0 4px rgba(101, 115, 255, .35), 0 0 18px rgba(77, 224, 255, .72);
++}
++
++.profileCopy {
++  display: grid;
++  gap: 2px;
++}
++
++.profileCopy small,
++.profileCopy em {
++  color: #80eaff;
++  font-size: 10px;
++  font-style: normal;
++  font-weight: 800;
++  letter-spacing: .16em;
++}
++
++.profileCopy strong {
++  font-size: 18px;
++  line-height: 1.05;
++}
++
++.profileCopy em i {
++  display: inline-block;
++  width: 7px;
++  height: 7px;
++  margin-right: 5px;
++  border-radius: 50%;
++  background: #4cff9a;
++  box-shadow: 0 0 9px #4cff9a;
++}
++
++.socialDock {
++  position: fixed;
++  bottom: 24px;
++  left: 24px;
++  width: auto;
++  min-width: 0;
++  padding: 0;
++  border: 0;
++  background: transparent;
++  box-shadow: none;
++}
++
++.socialDock > div:first-child,
++.socialDock > div:nth-child(2) {
++  display: none;
++}
++
++.socialDock button {
++  min-width: 84px;
++  min-height: 76px;
++  padding: 9px 12px !important;
++  border: 1px solid rgba(66, 224, 255, .7) !important;
++  border-radius: 14px !important;
++  background: linear-gradient(145deg, rgba(6, 31, 63, .96), rgba(17, 75, 118, .92)) !important;
++  color: #f6fdff !important;
++  box-shadow: 0 8px 19px rgba(0, 0, 0, .3), inset 0 0 14px rgba(69, 204, 255, .13);
++}
++
++.socialDock button:hover,
++.socialDock button:focus-visible,
++.socialDock button.active {
++  transform: translateY(-3px) !important;
++  border-color: #a86bff !important;
++  box-shadow: 0 0 0 2px rgba(139, 90, 255, .25), 0 10px 24px rgba(0, 0, 0, .4) !important;
++}
++
++.socialDock button:nth-last-child(2) {
++  border-color: rgba(213, 112, 255, .9) !important;
++  background: linear-gradient(145deg, rgba(50, 18, 94, .96), rgba(113, 50, 173, .92)) !important;
++}
++
++.socialDock button:last-child {
++  border-color: rgba(82, 255, 179, .82) !important;
++}
++
++.socialDock button > span:first-child {
++  transform: scale(1.16);
++}
++
++.chatPrompt {
++  position: fixed;
++  bottom: 30px;
++  left: 50%;
++  display: flex;
++  align-items: center;
++  gap: 11px;
++  width: min(390px, calc(100vw - 420px));
++  min-height: 48px;
++  padding: 0 14px;
++  transform: translateX(-50%);
++  border: 1px solid rgba(79, 205, 255, .65);
++  border-radius: 16px;
++  background: rgba(7, 23, 49, .86);
++  color: #d5e9f7;
++  font: 600 14px Inter, system-ui, sans-serif;
++  text-align: left;
++  box-shadow: 0 9px 26px rgba(0, 0, 0, .3);
++}
++
++.chatPrompt > span:first-child {
++  color: #68e7ff;
++  font-size: 19px;
++}
++
++.chatPrompt kbd,
++.movementDock kbd {
++  margin-left: auto;
++  padding: 3px 6px;
++  border: 1px solid rgba(255, 255, 255, .25);
++  border-radius: 5px;
++  color: #d9f8ff;
++  font: 700 9px Inter, system-ui, sans-serif;
++  letter-spacing: .06em;
++}
++
++.movementDock {
++  position: fixed;
++  right: 26px;
++  bottom: 36px;
++  display: flex;
++  gap: 12px;
++}
++
++.movementDock div {
++  display: grid;
++  grid-template-columns: 34px 1fr;
++  align-items: center;
++  column-gap: 8px;
++  min-width: 106px;
++  padding: 8px 10px;
++  border: 1px solid rgba(106, 211, 255, .48);
++  border-radius: 13px;
++  background: rgba(7, 22, 47, .84);
++  box-shadow: 0 7px 20px rgba(0, 0, 0, .28);
++}
++
++.movementDock strong {
++  font-size: 12px;
++}
++
++.movementDock kbd {
++  grid-column: 2;
++  width: fit-content;
++  margin: 2px 0 0;
++}
++
++.moveIcon {
++  grid-row: span 2;
++  width: 30px;
++  height: 30px;
++  border: 2px solid #dffaff;
++  border-radius: 50%;
++  opacity: .95;
++}
++
++.runIcon::after {
++  content: '\2192';
++  display: block;
++  color: #72eaff;
++  font-size: 23px;
++  line-height: 26px;
++  text-align: center;
++}
++
++.jumpIcon::after {
++  content: '\2191';
++  display: block;
++  color: #72eaff;
++  font-size: 27px;
++  line-height: 25px;
++  text-align: center;
++}
++
++.statusLine {
++  position: fixed;
++  right: 28px;
++  bottom: 12px;
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  color: rgba(230, 247, 255, .9);
++  font-size: 12px;
++  font-weight: 700;
++}
++
++.statusLine i {
++  width: 4px;
++  height: 4px;
++  border-radius: 50%;
++  background: #8caec2;
++}
++
++.signal {
++  width: 15px;
++  height: 12px;
++  border-left: 3px solid #57ff9c;
++  border-bottom: 3px solid #57ff9c;
++  transform: skewY(-25deg);
++}
++
++@media (max-width: 760px) {
++  .profilePanel { top: 12px; left: 12px; min-width: 0; padding-right: 13px; }
++  .profileCopy strong { font-size: 15px; }
++  .socialDock { left: 12px; bottom: 12px; }
++  .socialDock button { min-width: 68px; min-height: 60px; font-size: 11px; }
++  .chatPrompt { bottom: 84px; width: min(300px, calc(100vw - 24px)); }
++  .movementDock, .statusLine { display: none; }
++}

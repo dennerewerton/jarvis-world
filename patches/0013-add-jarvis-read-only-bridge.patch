@@ -1,0 +1,239 @@
+diff --git a/src/Header.jsx b/src/Header.jsx
+index cc61e32..cbe78c9 100644
+--- a/src/Header.jsx
++++ b/src/Header.jsx
+@@ -15,7 +15,7 @@ import { registerIoEventHandler, unregisterIoEventHandler } from './components/ge
+ import { AppContext } from './components/app';
+ import { AvatarIcon } from './AvatarIcon';
+ import { StoryTime } from './StoryTime';
+-import { User } from './User';
++import {JarvisUser} from './jarvis-compat/JarvisUser.jsx';
+ 
+ import styles from './Header.module.css';
+ import { UIMode } from './components/general/ui-mode/index.jsx';
+@@ -269,11 +269,7 @@ export default function Header() {
+                     <AvatarIcon />
+                 </UIMode>
+                 <UIMode hideDirection='right' >
+-                    <User
+-                        address={address}
+-                        setAddress={setAddress}
+-                        setLoginFrom={setLoginFrom}
+-                    />
++                    <JarvisUser />
+                 </UIMode>
+                 <div className={styles.tabs}>
+                     <Character
+diff --git a/src/jarvis-compat/ActivityShell.jsx b/src/jarvis-compat/ActivityShell.jsx
+index 70236a8..b11727d 100644
+--- a/src/jarvis-compat/ActivityShell.jsx
++++ b/src/jarvis-compat/ActivityShell.jsx
+@@ -1,8 +1,11 @@
+-import React, {useCallback, useEffect, useRef, useState} from 'react';
++import React, {createContext, useCallback, useEffect, useRef, useState} from 'react';
+ import {activityApi, ActivityApiError, clearActivitySession} from './activity-api.mjs';
+ import {authenticateDiscord, authorizeDiscord} from './activity-discord.js';
++import {loadJarvisIdentity} from './jarvis-bridge.mjs';
+ import styles from './activity-shell.module.css';
+ 
++export const JarvisIdentityContext = createContext(null);
++
+ const stageCopy = {
+   checking: ['Verificando disponibilidade…', 'Preparando uma conexão segura com os serviços do Jarvis.'],
+   waiting_discord: ['Conectando ao Discord…', 'Aguardando a autorização da Activity.'],
+@@ -94,13 +97,13 @@ export const ActivityShell = ({children}) => {
+       }
+ 
+       update({stage: 'loading_profile'});
+-      await Promise.all([activityApi.me(), activityApi.wallet()]);
++      const identity = await loadJarvisIdentity();
+       if (!hasRequiredBrowserFeatures()) {
+         update({stage: 'unsupported'});
+         return;
+       }
+       update({stage: 'preparing_runtime'});
+-      update({stage: 'ready'});
++      update({stage: 'ready', identity});
+     } catch (error) {
+       clearActivitySession();
+       update(failureStage(error));
+@@ -126,7 +136,13 @@ export const ActivityShell = ({children}) => {
+     };
+   }, []);
+ 
+-  if (state.stage === 'ready') return children;
++  if (state.stage === 'ready') {
++    return (
++      <JarvisIdentityContext.Provider value={state.identity}>
++        {children}
++      </JarvisIdentityContext.Provider>
++    );
++  }
+ 
+   const copy = stageCopy[state.stage] || stageCopy.error;
+   return (
+diff --git a/src/jarvis-compat/JarvisUser.jsx b/src/jarvis-compat/JarvisUser.jsx
+new file mode 100644
+index 0000000..b6b8047
+--- /dev/null
++++ b/src/jarvis-compat/JarvisUser.jsx
+@@ -0,0 +1,32 @@
++import React, {useContext} from 'react';
++
++import {JarvisIdentityContext} from './ActivityShell.jsx';
++import styles from './jarvis-user.module.css';
++
++const formatBalance = value => new Intl.NumberFormat('pt-BR').format(
++  Number.isFinite(Number(value)) ? Number(value) : 0,
++);
++
++export const JarvisUser = () => {
++  const identity = useContext(JarvisIdentityContext);
++  if (!identity) return null;
++
++  const displayName = identity.profile?.display_name
++    || identity.user?.display_name
++    || identity.user?.username
++    || 'Jogador';
++  const avatarUrl = identity.profile?.avatar_url || identity.user?.avatar_url || '';
++
++  return (
++    <section className={styles.identity} aria-label="Identidade Jarvis">
++      {avatarUrl && <img className={styles.avatar} src={avatarUrl} alt="" />}
++      <div className={styles.copy}>
++        <strong className={styles.name}>{displayName}</strong>
++        <span className={styles.balance}>
++          {formatBalance(identity.wallet?.balance)} Jarvis Coins
++        </span>
++      </div>
++      <span className={styles.verified} title="Identidade validada pelo Jarvis">J</span>
++    </section>
++  );
++};
+diff --git a/src/jarvis-compat/activity-api.mjs b/src/jarvis-compat/activity-api.mjs
+index e98e595..6e82f8c 100644
+--- a/src/jarvis-compat/activity-api.mjs
++++ b/src/jarvis-compat/activity-api.mjs
+@@ -61,4 +61,13 @@ export const activityApi = {
+   wallet() {
+     return authorized('/api/activity/wallet');
+   },
++  profile() {
++    return authorized('/api/activity/profile');
++  },
++  inventory() {
++    return authorized('/api/activity/inventory');
++  },
++  shop() {
++    return authorized('/api/activity/shop');
++  },
+ };
+diff --git a/src/jarvis-compat/jarvis-bridge.mjs b/src/jarvis-compat/jarvis-bridge.mjs
+new file mode 100644
+index 0000000..7d0bf56
+--- /dev/null
++++ b/src/jarvis-compat/jarvis-bridge.mjs
+@@ -0,0 +1,40 @@
++import {activityApi, ActivityApiError} from './activity-api.mjs';
++
++const payloadField = (payload, field) => {
++  const value = payload?.[field];
++  if (!value || typeof value !== 'object' || Array.isArray(value)) {
++    throw new ActivityApiError(
++      'invalid_response',
++      502,
++      'O Jarvis retornou dados incompletos para iniciar o mundo.',
++    );
++  }
++  return value;
++};
++
++export const jarvisBridge = Object.freeze({
++  async getCurrentUser() {
++    return payloadField(await activityApi.me(), 'user');
++  },
++  async getProfile() {
++    return payloadField(await activityApi.profile(), 'profile');
++  },
++  async getWallet() {
++    return payloadField(await activityApi.wallet(), 'wallet');
++  },
++  async getInventory() {
++    return payloadField(await activityApi.inventory(), 'inventory');
++  },
++  async getShop() {
++    return payloadField(await activityApi.shop(), 'shop');
++  },
++});
++
++export const loadJarvisIdentity = async () => {
++  const [user, profile, wallet] = await Promise.all([
++    jarvisBridge.getCurrentUser(),
++    jarvisBridge.getProfile(),
++    jarvisBridge.getWallet(),
++  ]);
++  return Object.freeze({user, profile, wallet});
++};
+diff --git a/src/jarvis-compat/jarvis-user.module.css b/src/jarvis-compat/jarvis-user.module.css
+new file mode 100644
+index 0000000..3a00ef7
+--- /dev/null
++++ b/src/jarvis-compat/jarvis-user.module.css
+@@ -0,0 +1,57 @@
++.identity {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  margin: 12px;
++  padding: 8px 10px;
++  max-width: min(320px, calc(100vw - 24px));
++  border: 1px solid rgba(116, 214, 255, 0.45);
++  border-radius: 12px;
++  background: rgba(4, 12, 24, 0.88);
++  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.32);
++  color: #f4fbff;
++  font-family: Muli, sans-serif;
++  backdrop-filter: blur(10px);
++}
++
++.avatar {
++  width: 36px;
++  height: 36px;
++  border-radius: 50%;
++  object-fit: cover;
++}
++
++.copy {
++  display: flex;
++  min-width: 0;
++  flex: 1;
++  flex-direction: column;
++}
++
++.name,
++.balance {
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.name {
++  font-size: 14px;
++}
++
++.balance {
++  color: #9edcf4;
++  font-size: 12px;
++}
++
++.verified {
++  display: grid;
++  width: 24px;
++  height: 24px;
++  flex: 0 0 24px;
++  place-items: center;
++  border-radius: 50%;
++  background: #68d6ff;
++  color: #06111d;
++  font-weight: 800;
++}

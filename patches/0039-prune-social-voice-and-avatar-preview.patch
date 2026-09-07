@@ -1,0 +1,104 @@
+diff --git a/game.js b/game.js
+--- a/game.js
++++ b/game.js
+@@ -10,6 +10,5 @@
+ import cameraManager from './camera-manager.js';
+ import ioManager from './io-manager.js';
+-import dioramaManager from './diorama.js';
+ import {world} from './world.js';
+ import {buildMaterial, highlightMaterial, selectMaterial, hoverMaterial, hoverEquipmentMaterial} from './shaders.js';
+ import {getRenderer, sceneLowPriority, camera} from './renderer.js';
+@@ -1637,23 +1636,8 @@ class GameManager extends EventTarget {
+   }
+   playerDiorama = null;
+   bindDioramaCanvas() {
+-    // await rendererWaitForLoad();
+-
+-    const localPlayer = playersManager.getLocalPlayer();
+-    this.playerDiorama = dioramaManager.createPlayerDiorama({
+-      target: localPlayer,
+-      // label: true,
+-      outline: true,
+-      grassBackground: true,
+-      // glyphBackground: true,
+-    });
+-    localPlayer.addEventListener('avatarchange', e => {
+-      const localPlayer = playersManager.getLocalPlayer();
+-      this.playerDiorama.setTarget(localPlayer);
+-      this.playerDiorama.setObjects([
+-        e.avatar.model,
+-      ]);
+-    })
++    // Character preview rendering is retired; the in-world avatar and skins remain active.
++    return null;
+   }
+   async setVoicePack(voicePack) {
+     const localPlayer = metaversefileApi.useLocalPlayer();
+diff --git a/io-manager.js b/io-manager.js
+--- a/io-manager.js
++++ b/io-manager.js
+@@ -11,6 +11,5 @@
+ import game from './game.js';
+ import {world} from './world.js';
+-import voiceInput from './voice-input/voice-input.js';
+ // import * as universe from './universe.js';
+ // import {toggle as inventoryToggle} from './inventory.js';
+ import {isInIframe, getVelocityDampingFactor} from './util.js';
+@@ -517,12 +516,12 @@ ioManager.keydown = e => {
+     case 84: { // T
+       e.preventDefault();
+       e.stopPropagation();
+-      voiceInput.toggleMic();
++      // Discord owns voice; the retired Webaverse microphone is intentionally inert.
+       break;
+     }
+     case 89: { // Y
+       e.preventDefault();
+       e.stopPropagation();
+-      voiceInput.toggleSpeech();
++      // Browser speech recognition is not part of the social runtime.
+       break;
+     }
+*** Update File: D:\Jarvis\jarvis-bot\webaverse\deploy\squarecloud-bootstrap\bootstrap.mjs
+@@
+-const release = 'fw66-pilot-2026-09-06.39';
++const release = 'fw66-pilot-2026-09-06.40';
+*** Update File: D:\Jarvis\jarvis-bot\webaverse\patches\README.md
+@@
+ `0038-separate-social-arena-from-city.patch` relocates the non-combat Arena
+ marker from a Cartoon City block to a separate south exterior at `[0, 0.02,
+ -108]`. The static ground/collider expands only enough to support that social
+ and parkour destination; it does not load a second city or a combat arena.
+
+`0039-prune-social-voice-and-avatar-preview.patch` removes the retired
+Webaverse microphone/speech module and the offscreen character-preview
+diorama from production startup. Discord remains the voice provider and the
+in-world avatar/skins pipeline is unchanged.
+*** Update File: D:\Jarvis\jarvis-bot\docs\jarvis-world\progress.md
+@@
+ awaits Discord visual QA.
+
+### CITY-ITH social client pruning (2026-09-06)
+
+Patch `0039` removes two unused client-side dependency paths: the Webaverse
+microphone/speech subsystem (Discord is the Activity voice provider) and the
+offscreen diorama character preview. The latter is no longer reachable from
+the social HUD. The actual in-world avatar and its skins are not changed.
+Bootstrap release `fw66-pilot-2026-09-06.40` awaits Discord regression QA.
+*** Update File: D:\Jarvis\jarvis-bot\webaverse\tests\activity-runtime-baseline.test.mjs
+@@
+ const separateArenaPatch = fs.readFileSync(
+   'webaverse/patches/0038-separate-social-arena-from-city.patch',
+   'utf8',
+ );
++const socialVoiceAndPreviewPrunePatch = fs.readFileSync(
++  'webaverse/patches/0039-prune-social-voice-and-avatar-preview.patch',
++  'utf8',
++);
+@@
+   assert.match(separateArenaPatch, /\[0, 0\.02, -108\]/);
+   assert.match(separateArenaPatch, /separate social\/parkour destination south of the city/);
++  assert.match(socialVoiceAndPreviewPrunePatch, /-import voiceInput from '\.\/voice-input\/voice-input\.js';/);
++  assert.match(socialVoiceAndPreviewPrunePatch, /-import dioramaManager from '\.\/diorama\.js';/);
++  assert.match(socialVoiceAndPreviewPrunePatch, /in-world avatar and skins remain active/);
+ });

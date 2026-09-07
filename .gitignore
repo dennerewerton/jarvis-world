@@ -1,0 +1,4 @@
+.webaverse-runtime/
+node_modules/
+*.log
+.env.local

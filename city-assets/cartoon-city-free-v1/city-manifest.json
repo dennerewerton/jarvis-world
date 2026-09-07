@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "file": "Cartoon_City_Free.glb",
+    "sha256": "689E0DE8BCAF27566170F2CBA646203BDF01B39622D546736F037A0BABB07EEC",
+    "version": "1.0"
+  },
+  "coordinateSystem": "ITHappy demo scene, metres, unchanged transforms",
+  "sectors": [
+    {
+      "id": "north-center",
+      "gltf": "north-center.gltf",
+      "bin": "north-center.bin",
+      "rootNodes": 29,
+      "nodes": 38,
+      "meshes": 22,
+      "materials": 13,
+      "textures": 18,
+      "bytes": 196996
+    },
+    {
+      "id": "north-central-center",
+      "gltf": "north-central-center.gltf",
+      "bin": "north-central-center.bin",
+      "rootNodes": 21,
+      "nodes": 25,
+      "meshes": 17,
+      "materials": 11,
+      "textures": 16,
+      "bytes": 300720
+    },
+    {
+      "id": "north-central-east",
+      "gltf": "north-central-east.gltf",
+      "bin": "north-central-east.bin",
+      "rootNodes": 31,
+      "nodes": 39,
+      "meshes": 24,
+      "materials": 15,
+      "textures": 21,
+      "bytes": 277124
+    },
+    {
+      "id": "north-central-west",
+      "gltf": "north-central-west.gltf",
+      "bin": "north-central-west.bin",
+      "rootNodes": 17,
+      "nodes": 29,
+      "meshes": 25,
+      "materials": 12,
+      "textures": 17,
+      "bytes": 745524
+    },
+    {
+      "id": "north-east",
+      "gltf": "north-east.gltf",
+      "bin": "north-east.bin",
+      "rootNodes": 14,
+      "nodes": 22,
+      "meshes": 20,
+      "materials": 12,
+      "textures": 17,
+      "bytes": 391128
+    },
+    {
+      "id": "north-west",
+      "gltf": "north-west.gltf",
+      "bin": "north-west.bin",
+      "rootNodes": 14,
+      "nodes": 18,
+      "meshes": 14,
+      "materials": 11,
+      "textures": 16,
+      "bytes": 425112
+    },
+    {
+      "id": "south-center",
+      "gltf": "south-center.gltf",
+      "bin": "south-center.bin",
+      "rootNodes": 26,
+      "nodes": 30,
+      "meshes": 16,
+      "materials": 13,
+      "textures": 18,
+      "bytes": 235192
+    },
+    {
+      "id": "south-central-center",
+      "gltf": "south-central-center.gltf",
+      "bin": "south-central-center.bin",
+      "rootNodes": 23,
+      "nodes": 40,
+      "meshes": 29,
+      "materials": 12,
+      "textures": 17,
+      "bytes": 567012
+    },
+    {
+      "id": "south-central-east",
+      "gltf": "south-central-east.gltf",
+      "bin": "south-central-east.bin",
+      "rootNodes": 19,
+      "nodes": 33,
+      "meshes": 27,
+      "materials": 14,
+      "textures": 21,
+      "bytes": 649732
+    },
+    {
+      "id": "south-central-west",
+      "gltf": "south-central-west.gltf",
+      "bin": "south-central-west.bin",
+      "rootNodes": 16,
+      "nodes": 16,
+      "meshes": 9,
+      "materials": 8,
+      "textures": 10,
+      "bytes": 379996
+    },
+    {
+      "id": "south-east",
+      "gltf": "south-east.gltf",
+      "bin": "south-east.bin",
+      "rootNodes": 10,
+      "nodes": 10,
+      "meshes": 8,
+      "materials": 7,
+      "textures": 9,
+      "bytes": 178096
+    },
+    {
+      "id": "south-west",
+      "gltf": "south-west.gltf",
+      "bin": "south-west.bin",
+      "rootNodes": 18,
+      "nodes": 27,
+      "meshes": 22,
+      "materials": 12,
+      "textures": 17,
+      "bytes": 322004
+    }
+  ],
+  "sharedTextures": [
+    {
+      "sourceImage": 0,
+      "file": "486c6d61063241d5.webp",
+      "mimeType": "image/webp"
+    },
+    {
+      "sourceImage": 1,
+      "file": "486c6d61063241d5.webp",
+      "mimeType": "image/webp"
+    },
+    {
+      "sourceImage": 2,
+      "file": "cd11a20db95ff60c.webp",
+      "mimeType": "image/webp"
+    },
+    {
+      "sourceImage": 3,
+      "file": "28470d0f5c64a9e9.png",
+      "mimeType": "image/png"
+    },
+    {
+      "sourceImage": 4,
+      "file": "d686ec6d73243cad.webp",
+      "mimeType": "image/webp"
+    },
+    {
+      "sourceImage": 5,
+      "file": "0dd4c9f67e03b0dc.png",
+      "mimeType": "image/png"
+    },
+    {
+      "sourceImage": 6,
+      "file": "2cccaa2f16cfd5f2.webp",
+      "mimeType": "image/webp"
+    },
+    {
+      "sourceImage": 7,
+      "file": "e5b3c37a88b83cd5.webp",
+      "mimeType": "image/webp"
+    },
+    {
+      "sourceImage": 8,
+      "file": "6b5f60a1524e8f02.webp",
+      "mimeType": "image/webp"
+    },
+    {
+      "sourceImage": 9,
+      "file": "7304cfa24ac03a1d.webp",
+      "mimeType": "image/webp"
+    }
+  ]
+}

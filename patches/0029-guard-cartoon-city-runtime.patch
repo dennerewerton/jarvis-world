@@ -1,0 +1,44 @@
+diff --git a/metaverse_modules/jarvis-cartoon-city-world/index.js b/metaverse_modules/jarvis-cartoon-city-world/index.js
+index caa7ce0..0e6f6e7 100644
+--- a/metaverse_modules/jarvis-cartoon-city-world/index.js
++++ b/metaverse_modules/jarvis-cartoon-city-world/index.js
+@@ -64,6 +64,7 @@ export default e => {
+   const physicsIds = [];
+   let disposed = false;
+   let core;
++  let streamFailed = false;
+ 
+   app.setComponent('cityQuality', app.getComponent('cityQuality') || DEFAULT_QUALITY);
+   app.setComponent('citySource', 'ithappy-cartoon-city-free-v1');
+@@ -164,15 +165,22 @@ export default e => {
+   e.waitUntil(loadSector(initialSector));
+ 
+   useFrame(({timestamp}) => {
+-    if (core) core.rotation.y = timestamp / 1500;
+-    const quality = app.getComponent('cityQuality');
+-    const loadDistance = QUALITY_LOAD_DISTANCE[quality] || QUALITY_LOAD_DISTANCE.auto;
+-    for (const sector of SECTORS) {
+-      const distance = distanceToSector(localPlayer.position, sector);
+-      if (distance <= loadDistance) {
+-        loadSector(sector);
+-      } else if (distance > loadDistance + UNLOAD_MARGIN) {
+-        unloadSector(sector);
++    if (streamFailed) return;
++    try {
++      if (core) core.rotation.y = timestamp / 1500;
++      const quality = app.getComponent('cityQuality');
++      const loadDistance = QUALITY_LOAD_DISTANCE[quality] || QUALITY_LOAD_DISTANCE.auto;
++      for (const sector of SECTORS) {
++        const distance = distanceToSector(localPlayer.position, sector);
++        if (distance <= loadDistance) {
++          loadSector(sector);
++        } else if (distance > loadDistance + UNLOAD_MARGIN) {
++          unloadSector(sector);
++        }
+       }
++    } catch (error) {
++      // A sector problem must not take down the authenticated Activity shell.
++      streamFailed = true;
++      console.error('Jarvis Cartoon City streaming disabled after a runtime error.', error);
+     }
+   });

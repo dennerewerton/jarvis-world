@@ -1,0 +1,125 @@
+diff --git a/metaverse_modules/jarvis-baseline-world/.metaversefile b/metaverse_modules/jarvis-baseline-world/.metaversefile
+new file mode 100644
+index 0000000..f637d7b
+--- /dev/null
++++ b/metaverse_modules/jarvis-baseline-world/.metaversefile
+@@ -0,0 +1,4 @@
++{
++  "name": "jarvis-baseline-world",
++  "start_url": "index.js"
++}
+diff --git a/metaverse_modules/jarvis-baseline-world/index.js b/metaverse_modules/jarvis-baseline-world/index.js
+new file mode 100644
+index 0000000..97101f7
+--- /dev/null
++++ b/metaverse_modules/jarvis-baseline-world/index.js
+@@ -0,0 +1,90 @@
++import * as THREE from 'three';
++import metaversefile from 'metaversefile';
++
++const {useApp, useCleanup, usePhysics} = metaversefile;
++
++const makeBox = (size, color, position) => {
++  const mesh = new THREE.Mesh(
++    new THREE.BoxGeometry(size[0], size[1], size[2]),
++    new THREE.MeshStandardMaterial({
++      color,
++      roughness: 0.82,
++      metalness: 0.04,
++    })
++  );
++  mesh.position.fromArray(position);
++  mesh.castShadow = true;
++  mesh.receiveShadow = true;
++  return mesh;
++};
++
++export default () => {
++  const app = useApp();
++  const physics = usePhysics();
++  const floorSize = 120;
++
++  const ground = new THREE.Mesh(
++    new THREE.BoxGeometry(floorSize, 0.5, floorSize),
++    new THREE.MeshStandardMaterial({
++      color: 0x20384d,
++      roughness: 0.9,
++      metalness: 0,
++    })
++  );
++  ground.position.set(0, -0.25, 0);
++  ground.receiveShadow = true;
++  app.add(ground);
++
++  const plaza = new THREE.Mesh(
++    new THREE.CylinderGeometry(14, 14, 0.12, 48),
++    new THREE.MeshStandardMaterial({
++      color: 0x62c7e8,
++      roughness: 0.58,
++      metalness: 0.08,
++    })
++  );
++  plaza.position.y = 0.06;
++  plaza.receiveShadow = true;
++  app.add(plaza);
++
++  const fountain = new THREE.Group();
++  fountain.add(makeBox([5.5, 0.7, 5.5], 0x0e5b85, [0, 0.42, 0]));
++  fountain.add(makeBox([2.2, 2.8, 2.2], 0xc6e8f1, [0, 1.9, 0]));
++  fountain.add(makeBox([0.5, 2.4, 0.5], 0x72e7ff, [0, 4.45, 0]));
++  app.add(fountain);
++
++  const buildingSpecs = [
++    [[14, 16, 14], 0x405b78, [-26, 8, -25]],
++    [[18, 24, 12], 0x654c8c, [28, 12, -28]],
++    [[12, 11, 18], 0x3b7768, [-28, 5.5, 25]],
++    [[20, 15, 10], 0x80566a, [30, 7.5, 27]],
++  ];
++  for (const [size, color, position] of buildingSpecs) {
++    app.add(makeBox(size, color, position));
++  }
++
++  const pathMaterial = new THREE.MeshStandardMaterial({
++    color: 0xf1c867,
++    roughness: 0.7,
++    metalness: 0,
++  });
++  for (const [width, depth] of [[5, 88], [88, 5]]) {
++    const path = new THREE.Mesh(new THREE.BoxGeometry(width, 0.08, depth), pathMaterial);
++    path.position.y = 0.08;
++    path.receiveShadow = true;
++    app.add(path);
++  }
++
++  const floorPhysicsId = physics.addBoxGeometry(
++    new THREE.Vector3(0, -0.25, 0),
++    new THREE.Quaternion(),
++    new THREE.Vector3(floorSize / 2, 0.25, floorSize / 2),
++    false
++  );
++
++  useCleanup(() => {
++    physics.removeGeometry(floorPhysicsId);
++  });
++
++  return app;
++};
+diff --git a/scenes/jarvis-webaverse-baseline.scn b/scenes/jarvis-webaverse-baseline.scn
+index 1153f68..0e9fa90 100644
+--- a/scenes/jarvis-webaverse-baseline.scn
++++ b/scenes/jarvis-webaverse-baseline.scn
+@@ -23,13 +23,7 @@
+       }
+     },
+     {
+-      "start_url": "../metaverse_modules/street-base/"
+-    },
+-    {
+-      "start_url": "../metaverse_modules/street/"
+-    },
+-    {
+-      "start_url": "../metaverse_modules/skybox/"
++      "start_url": "../metaverse_modules/jarvis-baseline-world/"
+     }
+   ]
+ }

@@ -1,0 +1,245 @@
+diff --git a/metaverse_modules/jarvis-city-world/.metaversefile b/metaverse_modules/jarvis-city-world/.metaversefile
+new file mode 100644
+index 0000000..b6a2ca0
+--- /dev/null
++++ b/metaverse_modules/jarvis-city-world/.metaversefile
+@@ -0,0 +1,4 @@
++{
++  "name": "jarvis-city-world",
++  "start_url": "index.js"
++}
+diff --git a/metaverse_modules/jarvis-city-world/index.js b/metaverse_modules/jarvis-city-world/index.js
+new file mode 100644
+index 0000000..efb6a5b
+--- /dev/null
++++ b/metaverse_modules/jarvis-city-world/index.js
+@@ -0,0 +1,39 @@
++import * as THREE from 'three';
++import metaversefile from 'metaversefile';
++
++const {useApp, useCleanup, usePhysics} = metaversefile;
++
++export default () => {
++  const app = useApp();
++  const physics = usePhysics();
++  const floorSize = 160;
++
++  const sky = new THREE.Mesh(
++    new THREE.SphereGeometry(120, 28, 18),
++    new THREE.MeshBasicMaterial({color: 0x132c47, side: THREE.BackSide}),
++  );
++  sky.position.y = 42;
++  sky.frustumCulled = false;
++  app.add(sky);
++
++  const ground = new THREE.Mesh(
++    new THREE.BoxGeometry(floorSize, 0.5, floorSize),
++    new THREE.MeshStandardMaterial({color: 0x263e52, roughness: 0.92}),
++  );
++  ground.position.set(0, -0.25, 0);
++  ground.receiveShadow = true;
++  app.add(ground);
++
++  const floorPhysicsId = physics.addBoxGeometry(
++    new THREE.Vector3(0, -0.25, 0),
++    new THREE.Quaternion(),
++    new THREE.Vector3(floorSize / 2, 0.25, floorSize / 2),
++    false,
++  );
++
++  useCleanup(() => {
++    physics.removeGeometry(floorPhysicsId);
++  });
++
++  return app;
++};
+diff --git a/scenes/jarvis-webaverse-baseline.scn b/scenes/jarvis-webaverse-baseline.scn
+index 0e9fa90..7566c5d 100644
+--- a/scenes/jarvis-webaverse-baseline.scn
++++ b/scenes/jarvis-webaverse-baseline.scn
+@@ -23,7 +23,184 @@
+       }
+     },
+     {
+-      "start_url": "../metaverse_modules/jarvis-baseline-world/"
++      "start_url": "../metaverse_modules/jarvis-city-world/"
++    },
++    {
++      "position": [-9, 0.02, -18],
++      "scale": [2.85, 2.85, 2.85],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-competitive.glb"
++    },
++    {
++      "position": [-9, 0.02, -6],
++      "scale": [3.5, 3.5, 3.5],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-shop.glb"
++    },
++    {
++      "position": [-9, 0.02, 6],
++      "quaternion": [0, 1, 0, 0],
++      "scale": [3.4, 3.4, 3.4],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-arcade.glb"
++    },
++    {
++      "position": [-9, 0.02, 18],
++      "quaternion": [0, 1, 0, 0],
++      "scale": [4.6, 4.6, 4.6],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-social.glb"
++    },
++    {
++      "position": [0, 0.02, -32],
++      "scale": [3.8, 3.8, 3.8],
++      "start_url": "/assets/jarvis-world/3d/r6/landmarks/kenney-city-commercial-jarvis-tower.glb"
++    },
++    {
++      "position": [0, 0.035, -16],
++      "quaternion": [0, 0.7071068, 0, 0.7071068],
++      "scale": [8, 8, 8],
++      "start_url": "/assets/jarvis-world/3d/r7/downtown/kenney-road-straight.glb"
++    },
++    {
++      "position": [0, 0.035, -8],
++      "quaternion": [0, 0.7071068, 0, 0.7071068],
++      "scale": [8, 8, 8],
++      "start_url": "/assets/jarvis-world/3d/r7/downtown/kenney-road-straight.glb"
++    },
++    {
++      "position": [0, 0.035, 8],
++      "quaternion": [0, 0.7071068, 0, 0.7071068],
++      "scale": [8, 8, 8],
++      "start_url": "/assets/jarvis-world/3d/r7/downtown/kenney-road-straight.glb"
++    },
++    {
++      "position": [0, 0.035, 16],
++      "quaternion": [0, 0.7071068, 0, 0.7071068],
++      "scale": [8, 8, 8],
++      "start_url": "/assets/jarvis-world/3d/r7/downtown/kenney-road-straight.glb"
++    },
++    {
++      "position": [0, 0.035, 0],
++      "quaternion": [0, 0.7071068, 0, 0.7071068],
++      "scale": [8, 8, 8],
++      "start_url": "/assets/jarvis-world/3d/r7/downtown/kenney-road-crossroad.glb"
++    },
++    {
++      "position": [0, 0.035, -24],
++      "quaternion": [0, 0.7071068, 0, 0.7071068],
++      "scale": [8, 8, 8],
++      "start_url": "/assets/jarvis-world/3d/r7/downtown/kenney-road-crossing.glb"
++    },
++    {
++      "position": [0, 0.035, 24],
++      "quaternion": [0, 0.7071068, 0, 0.7071068],
++      "scale": [8, 8, 8],
++      "start_url": "/assets/jarvis-world/3d/r7/downtown/kenney-road-crossing.glb"
++    },
++    {
++      "position": [4, 0.035, -28],
++      "scale": [8, 8, 8],
++      "start_url": "/assets/jarvis-world/3d/r7/downtown/kenney-road-bend-sidewalk.glb"
++    },
++    {
++      "position": [4, 0.035, 28],
++      "quaternion": [0, 1, 0, 0],
++      "scale": [8, 8, 8],
++      "start_url": "/assets/jarvis-world/3d/r7/downtown/kenney-road-bend-sidewalk.glb"
++    },
++    {
++      "position": [9, 0.04, -18],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "scale": [3.2, 3.2, 3.2],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-competitive.glb"
++    },
++    {
++      "position": [9, 0.04, -6],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "scale": [4, 4, 4],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-shop.glb"
++    },
++    {
++      "position": [9, 0.04, 6],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "scale": [3.8, 3.8, 3.8],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-arcade.glb"
++    },
++    {
++      "position": [9, 0.04, 18],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "scale": [5, 5, 5],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-social.glb"
++    },
++    {
++      "position": [18, 0.04, -15],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "scale": [3.5, 3.5, 3.5],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-competitive.glb"
++    },
++    {
++      "position": [18, 0.04, 15],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "scale": [3.5, 3.5, 3.5],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-competitive.glb"
++    },
++    {
++      "position": [18, 0.04, -3],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "scale": [4.2, 4.2, 4.2],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-shop.glb"
++    },
++    {
++      "position": [18, 0.04, 25],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "scale": [4.2, 4.2, 4.2],
++      "start_url": "/assets/jarvis-world/3d/r4/districts/kenney-city-commercial-shop.glb"
++    },
++    {
++      "position": [-3.2, 0.04, -20],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "start_url": "/assets/jarvis-world/3d/r1/props/kenney-light-curved.glb"
++    },
++    {
++      "position": [-3.2, 0.04, -4],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "start_url": "/assets/jarvis-world/3d/r1/props/kenney-light-curved.glb"
++    },
++    {
++      "position": [-3.2, 0.04, 12],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "start_url": "/assets/jarvis-world/3d/r1/props/kenney-light-curved.glb"
++    },
++    {
++      "position": [-3.2, 0.04, 24],
++      "quaternion": [0, -0.7071068, 0, 0.7071068],
++      "start_url": "/assets/jarvis-world/3d/r1/props/kenney-light-curved.glb"
++    },
++    {
++      "position": [13, 0.08, -24],
++      "scale": [1.7, 1.7, 1.7],
++      "start_url": "/assets/jarvis-world/3d/r2/plaza/kenney-nature-tree.glb"
++    },
++    {
++      "position": [13, 0.08, -12],
++      "quaternion": [0, 0.2955202, 0, 0.9553365],
++      "scale": [1.7, 1.7, 1.7],
++      "start_url": "/assets/jarvis-world/3d/r2/plaza/kenney-nature-tree.glb"
++    },
++    {
++      "position": [13, 0.08, 0],
++      "quaternion": [0, 0.5226872, 0, 0.8525245],
++      "scale": [1.7, 1.7, 1.7],
++      "start_url": "/assets/jarvis-world/3d/r2/plaza/kenney-nature-tree.glb"
++    },
++    {
++      "position": [13, 0.08, 12],
++      "quaternion": [0, 0.7173561, 0, 0.6967067],
++      "scale": [1.7, 1.7, 1.7],
++      "start_url": "/assets/jarvis-world/3d/r2/plaza/kenney-nature-tree.glb"
++    },
++    {
++      "position": [13, 0.08, 24],
++      "quaternion": [0, 0.8674232, 0, 0.4975710],
++      "scale": [1.7, 1.7, 1.7],
++      "start_url": "/assets/jarvis-world/3d/r2/plaza/kenney-nature-tree.glb"
+     }
+   ]
+ }

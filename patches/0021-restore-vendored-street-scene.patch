@@ -1,0 +1,19 @@
+diff --git a/scenes/jarvis-webaverse-baseline.scn b/scenes/jarvis-webaverse-baseline.scn
+index 0e9fa90..1153f68 100644
+--- a/scenes/jarvis-webaverse-baseline.scn
++++ b/scenes/jarvis-webaverse-baseline.scn
+@@ -23,7 +23,13 @@
+       }
+     },
+     {
+-      "start_url": "../metaverse_modules/jarvis-baseline-world/"
++      "start_url": "../metaverse_modules/street-base/"
++    },
++    {
++      "start_url": "../metaverse_modules/street/"
++    },
++    {
++      "start_url": "../metaverse_modules/skybox/"
+     }
+   ]
+ }

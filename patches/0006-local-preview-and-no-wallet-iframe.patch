@@ -1,0 +1,27 @@
+diff --git a/constants.js b/constants.js
+index 5dc7497..0000000 100644
+--- a/constants.js
++++ b/constants.js
+@@ -76,7 +76,7 @@ switch ( origin ) {
+         break;
+     }
+     default: {
+-        _inappPreviewHost = 'https://app.webaverse.online';
++        _inappPreviewHost = globalThis.location.origin;
+     }
+ }
+ 
+diff --git a/src/components/wallet.js b/src/components/wallet.js
+index 4b71cc3..0000000 100644
+--- a/src/components/wallet.js
++++ b/src/components/wallet.js
+@@ -15,6 +15,9 @@ class Wallet {
+   }
+ 
+   async waitForLoad() {
++    // Jarvis owns identity. Do not create the retired Webaverse wallet iframe.
++    return;
++
+     const self = this;
+     let pubk = '';
+ 

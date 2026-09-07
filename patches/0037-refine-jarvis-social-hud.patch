@@ -1,0 +1,331 @@
+diff --git a/src/SocialHud.jsx b/src/SocialHud.jsx
+--- a/src/SocialHud.jsx
++++ b/src/SocialHud.jsx
+@@ -3,4 +3,10 @@
+ import {AppContext} from './components/app';
+ import styles from './SocialHud.module.css';
++
++const HudIcon = ({kind}) => (
++  <span className={`${styles.icon} ${styles[`${kind}Icon`]}`} aria-hidden="true">
++    <span />
++  </span>
++);
+ 
+ export default function SocialHud() {
+@@ -7,4 +13,5 @@ export default function SocialHud() {
+   const {state, setState} = useContext(AppContext);
+   const [showControls, setShowControls] = useState(false);
++  const chatOpen = state.openedPanel === 'ChatPanel';
+ 
+   const openChat = () => {
+@@ -18,4 +25,15 @@ export default function SocialHud() {
+ 
+   return (
+     <nav className={styles.hud} aria-label="Acoes sociais">
++      <section className={styles.surface}>
++        <div className={styles.brand}>
++          <span className={styles.brandMark} aria-hidden="true">J</span>
++          <span className={styles.brandCopy}>
++            <small>JARVIS WORLD</small>
++            <strong>Jarvis City</strong>
++          </span>
++          <span className={styles.presence}><i /> SOCIAL</span>
++        </div>
++        <div className={styles.separator} />
++
+       {showControls ? (
+@@ -27,13 +45,19 @@ export default function SocialHud() {
+       ) : null}
+       <div className={styles.actions}>
+-        <button type="button" className={state.openedPanel === 'ChatPanel' ? styles.active : ''} onClick={openChat}>
++        <button type="button" className={chatOpen ? styles.active : ''} onClick={openChat} aria-pressed={chatOpen} title="Abrir chat">
++          <HudIcon kind="chat" />
+           Chat
+         </button>
+-        <button type="button" onClick={openEmotes}>Emotes</button>
+-        <button type="button" className={showControls ? styles.active : ''} onClick={() => setShowControls(value => !value)}>
+-          Controles
++        <button type="button" onClick={openEmotes} title="Abrir emotes (Q)">
++          <HudIcon kind="emote" />
++          Emotes
++        </button>
++        <button type="button" className={showControls ? styles.active : ''} onClick={() => setShowControls(value => !value)} aria-pressed={showControls} title="Ver controles">
++          <HudIcon kind="guide" />
++          Guia
+         </button>
+       </div>
++      </section>
+     </nav>
+   );
+ }
+diff --git a/src/SocialHud.module.css b/src/SocialHud.module.css
+--- a/src/SocialHud.module.css
++++ b/src/SocialHud.module.css
+@@ -67,0 +68,267 @@
++
++/* Jarvis City visual layer: CSS-only, so it adds no image or network cost. */
++
++.hud {
++  left: max(16px, env(safe-area-inset-left));
++  bottom: max(16px, env(safe-area-inset-bottom));
++  gap: 10px;
++}
++
++.surface,
++.controls {
++  box-sizing: border-box;
++  border-color: rgba(101, 222, 255, 0.4);
++  background: linear-gradient(135deg, rgba(5, 21, 39, 0.94), rgba(8, 42, 59, 0.9));
++  box-shadow: 0 18px 42px rgba(0, 8, 19, 0.34), inset 0 1px 0 rgba(210, 250, 255, 0.08);
++  backdrop-filter: blur(12px) saturate(115%);
++  -webkit-backdrop-filter: blur(12px) saturate(115%);
++}
++
++.surface {
++  width: min(340px, calc(100vw - 32px));
++  overflow: hidden;
++  border: 1px solid rgba(101, 222, 255, 0.4);
++  border-radius: 16px;
++  pointer-events: auto;
++}
++
++.brand {
++  display: flex;
++  align-items: center;
++  min-height: 58px;
++  padding: 9px 13px 8px;
++  gap: 10px;
++}
++
++.brandMark,
++.helpMark {
++  display: grid;
++  place-items: center;
++  border: 1px solid rgba(110, 229, 255, 0.7);
++  background: linear-gradient(145deg, rgba(75, 219, 255, 0.23), rgba(49, 115, 170, 0.14));
++  color: #8bebff;
++  font-weight: 700;
++}
++
++.brandMark {
++  width: 32px;
++  height: 32px;
++  flex: 0 0 auto;
++  border-radius: 11px;
++  box-shadow: inset 0 0 14px rgba(77, 225, 255, 0.13);
++  font-family: Georgia, serif;
++  font-size: 20px;
++}
++
++.brandCopy {
++  display: grid;
++  min-width: 0;
++  gap: 1px;
++}
++
++.brandCopy small,
++.presence,
++.controlsHeading small {
++  color: rgba(194, 231, 241, 0.68);
++  font-size: 9px;
++  font-weight: 700;
++  letter-spacing: 0.16em;
++  line-height: 1.15;
++}
++
++.brandCopy strong {
++  overflow: hidden;
++  color: #f1fdff;
++  font-size: 15px;
++  font-weight: 700;
++  line-height: 1.15;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.presence {
++  display: inline-flex;
++  align-items: center;
++  margin-left: auto;
++  gap: 5px;
++  color: #a6eefa;
++  letter-spacing: 0.08em;
++}
++
++.presence i {
++  width: 6px;
++  height: 6px;
++  border-radius: 50%;
++  background: #6df0bd;
++  box-shadow: 0 0 10px rgba(109, 240, 189, 0.8);
++}
++
++.separator {
++  height: 1px;
++  margin: 0 12px;
++  background: linear-gradient(90deg, transparent, rgba(118, 228, 251, 0.38), transparent);
++}
++
++.actions {
++  display: grid;
++  grid-template-columns: repeat(3, minmax(0, 1fr));
++  padding: 7px;
++  gap: 5px;
++  border: 0;
++  border-radius: 0;
++  background: transparent;
++}
++
++.actions button {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  min-height: 38px;
++  padding: 0 7px;
++  gap: 7px;
++  border: 1px solid transparent;
++  border-radius: 10px;
++  background: transparent;
++  color: rgba(223, 249, 255, 0.82);
++  font-size: 12px;
++  font-weight: 700;
++  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
++}
++
++.actions button:last-child {
++  border-right: 1px solid transparent;
++}
++
++.actions button:hover,
++.actions button:focus-visible,
++.actions button.active {
++  border-color: rgba(104, 229, 255, 0.46);
++  background: linear-gradient(135deg, rgba(68, 197, 231, 0.29), rgba(77, 108, 207, 0.2));
++  color: #ffffff;
++}
++
++.actions button:active {
++  transform: translateY(1px);
++}
++
++.icon {
++  position: relative;
++  display: inline-block;
++  width: 14px;
++  height: 14px;
++  flex: 0 0 auto;
++  color: #8beeff;
++}
++
++.chatIcon {
++  width: 13px;
++  height: 10px;
++  border: 1.5px solid currentColor;
++  border-radius: 4px;
++}
++
++.chatIcon::after {
++  position: absolute;
++  bottom: -4px;
++  left: 2px;
++  width: 4px;
++  height: 4px;
++  border-bottom: 1.5px solid currentColor;
++  border-left: 1.5px solid currentColor;
++  content: '';
++  transform: skewY(-35deg);
++}
++
++.emoteIcon {
++  border: 1.5px solid currentColor;
++  border-radius: 50%;
++}
++
++.emoteIcon::before {
++  position: absolute;
++  top: 3px;
++  left: 3px;
++  width: 2px;
++  height: 2px;
++  border-radius: 50%;
++  background: currentColor;
++  box-shadow: 5px 0 0 currentColor;
++  content: '';
++}
++
++.emoteIcon::after {
++  position: absolute;
++  bottom: 2px;
++  left: 4px;
++  width: 4px;
++  height: 2px;
++  border-bottom: 1.5px solid currentColor;
++  border-radius: 50%;
++  content: '';
++}
++
++.guideIcon {
++  border: 1.5px solid currentColor;
++  border-radius: 3px;
++}
++
++.guideIcon::before,
++.guideIcon::after {
++  position: absolute;
++  left: 3px;
++  width: 6px;
++  height: 1.5px;
++  border-radius: 2px;
++  background: currentColor;
++  content: '';
++}
++
++.guideIcon::before { top: 4px; }
+++.guideIcon::after { top: 8px; }
++
++.controls {
++  width: min(340px, calc(100vw - 32px));
++  gap: 7px;
++  padding: 13px;
++  border-radius: 15px;
++  font-size: 11px;
++}
++
++.controlsHeading {
++  display: flex;
++  align-items: center;
++  gap: 9px;
++  padding-bottom: 4px;
++}
++
++.controlsHeading > span:last-child {
++  display: grid;
++  gap: 2px;
++}
++
++.controlsHeading strong {
++  color: #f4fdff;
++  font-size: 14px;
++  line-height: 1;
++}
++
++.controlsHeading small {
++  letter-spacing: 0.04em;
++}
++
++.helpMark {
++  width: 25px;
++  height: 25px;
++  flex: 0 0 auto;
++  border-radius: 9px;
++  font-size: 14px;
++}
++
++@media (max-width: 420px) {
++  .presence { display: none; }
++  .actions button { gap: 5px; font-size: 11px; }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .actions button { transition: none; }
++}

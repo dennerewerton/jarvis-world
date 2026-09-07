@@ -1,0 +1,52 @@
+diff --git a/metaverse_modules/target-reticle/index.js b/metaverse_modules/target-reticle/index.js
+index d189655..29109c4 100644
+--- a/metaverse_modules/target-reticle/index.js
++++ b/metaverse_modules/target-reticle/index.js
+@@ -378,35 +378,17 @@ const _makeTargetReticleMesh = () => {
+-  mesh.setReticles = reticles => {
+-    const numReticles = reticles.length;
+-    for (let i = 0; i < numReticles; i++) {
+-      const reticle = reticles[i];
+-      
+-      const position = reticle.position;
+-      const quaternion = localQuaternion.copy(camera.quaternion).invert();
+-      const type = reticle.type;
+-      const typeIndex = targetTypeColors.findIndex(t => t.name === type);
+-      const zoom = reticle.zoom;
+-
+-      for (let j = 0; j < geometry.drawStride; j++) {
+-        position.toArray(geometry.attributes.offset.array, (i * geometry.drawStride * 3) + (j * 3));
+-        quaternion.toArray(geometry.attributes.quaternion.array, (i * geometry.drawStride * 3) + (j * 4));
+-        geometry.attributes.type.array[i * geometry.drawStride + j] = typeIndex;
+-        geometry.attributes.zoom.array[i * geometry.drawStride + j] = zoom;
+-      }
+-    }
+-    geometry.attributes.offset.needsUpdate = true;
+-    geometry.attributes.quaternion.needsUpdate = true;
+-    geometry.attributes.type.needsUpdate = true;
+-    geometry.attributes.zoom.needsUpdate = true;
+-    geometry.setDrawRange(0, geometry.drawStride * numReticles);
++  // Jarvis City has no aiming or combat. Keep this compatibility module inert
++  // even if an old session or third-party app asks it to display targets.
++  mesh.setReticles = () => {
++    geometry.setDrawRange(0, 0);
+   };
++  geometry.setDrawRange(0, 0);
++  mesh.visible = false;
+   return mesh;
+ };
+ export default () => {
+-  const mesh = _makeTargetReticleMesh();
+-
+-  useFrame(({timestamp, timeDiff}) => {
+-    mesh.update(timestamp, timeDiff);
+-  });
+-  
+-  return mesh;
++  // Return only the compatibility shape expected by z-targeting. No geometry,
++  // shader, texture or frame callback is created for the retired combat UI.
++  const app = new THREE.Object3D();
++  app.visible = false;
++  app.setReticles = () => {};
++  return app;
+ };

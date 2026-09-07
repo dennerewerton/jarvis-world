@@ -1,0 +1,63 @@
+diff --git a/jarvis-avatar-iconer.js b/jarvis-avatar-iconer.js
+new file mode 100644
+--- /dev/null
++++ b/jarvis-avatar-iconer.js
+@@ -0,0 +1,14 @@
++class AvatarIconer extends EventTarget {
++  constructor() {
++    super();
++    this.enabled = false;
++  }
++
++  addCanvas() {}
++  update() {}
++  destroy() {}
++}
++
++export {
++  AvatarIconer,
++};
+diff --git a/jarvis-offscreen-engine-manager.js b/jarvis-offscreen-engine-manager.js
+new file mode 100644
+--- /dev/null
++++ b/jarvis-offscreen-engine-manager.js
+@@ -0,0 +1,8 @@
++const offscreenEngineManager = {
++  createFunction() {
++    return async () => null;
++  },
++  destroy() {},
++};
++
++export default offscreenEngineManager;
+diff --git a/spritesheet-manager.js b/spritesheet-manager.js
+--- a/spritesheet-manager.js
++++ b/spritesheet-manager.js
+@@ -1,5 +1,5 @@
+ import {createObjectSprite} from './object-spriter.js';
+-import offscreenEngineManager from './offscreen-engine-manager.js';
++import offscreenEngineManager from './jarvis-offscreen-engine-manager.js';
+ 
+ class SpritesheetManager {
+   constructor() {
+diff --git a/src/AvatarIcon.jsx b/src/AvatarIcon.jsx
+--- a/src/AvatarIcon.jsx
++++ b/src/AvatarIcon.jsx
+@@ -13,7 +13,7 @@ import {
+ import styles from './AvatarIcon.module.css';
+ import {PlaceholderImg} from './PlaceholderImg.jsx';
+ import { playersManager } from '../players-manager.js';
+-import { AvatarIconer } from '../avatar-iconer.js';
++import { AvatarIconer } from '../jarvis-avatar-iconer.js';
+ import cameraManager from '../camera-manager.js'
+ import * as sounds from '../sounds.js'
+ 
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -8,4 +8,4 @@
+ import sceneNames from '../../../scenes/scenes.json';
+ import { parseQuery } from '../../../util.js'
+-import Webaverse from '../../../webaverse.js?jarvis-fw4=18';
++import Webaverse from '../../../webaverse.js?jarvis-fw4=19';
+ import universe from '../../../universe.js';

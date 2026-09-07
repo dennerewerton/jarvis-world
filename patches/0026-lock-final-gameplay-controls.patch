@@ -1,0 +1,190 @@
+diff --git a/io-manager.js b/io-manager.js
+--- a/io-manager.js
++++ b/io-manager.js
+@@ -20,6 +20,5 @@ import {menuState} from './mithril-ui/store/state.js'; */
+ // import physx from './physx.js';
+ // import {airFriction, flyFriction} from './constants.js';
+-import transformControls from './transform-controls.js';
+ import storyManager from './story.js';
+ // import domRenderer from './dom-renderer.jsx';
+ import raycastManager from './raycast-manager.js';
+@@ -376,7 +375,7 @@ ioManager.keydown = e => {
+         e.preventDefault();
+         e.stopPropagation();
+ 
+-        game.saveScene();
++        // Browser save is reserved; scene export is unavailable in the final game.
+       } else {
+         ioManager.keys.down = true;
+         if (!cameraManager.pointerLockElement) {
+@@ -446,6 +445,6 @@ ioManager.keydown = e => {
+           game.setBuildMode('floor');
+         } else { */
+-          game.menuDelete();
++          // X is intentionally inert: players cannot remove world objects.
+         // }
+       }
+       break;
+@@ -718,12 +717,8 @@ ioManager.keyup = e => {
+       break;
+     }
+     case 46: { // delete
+-      const object = game.getMouseSelectedObject();
+-      if (object) {
+-        game.setMouseHoverObject(null);
+-        game.setMouseSelectedObject(null);
+-        world.removeObject(object.instanceId);
+-      }
++      e.preventDefault();
++      e.stopPropagation();
+       break;
+     }
+     case 27: {
+@@ -740,10 +734,7 @@ ioManager.mousemove = e => {
+     if (cameraManager.pointerLockElement) {
+       cameraManager.handleMouseMove(e);
+     } else {
+-      if (game.dragging) {
+-        game.menuDrag(e);
+-        game.menuDragRight(e);
+-      }
++      // Pointer movement outside pointer lock never manipulates scene objects.
+     }
+     raycastManager.setLastMouseEvent(e);
+   // }
+@@ -795,16 +786,7 @@ ioManager.mousedown = e => {
+       game.menuAim();
+     }
+   } else {
+-    if ((changedButtons & 1) && (e.buttons & 1)) { // left
+-      const raycaster = raycastManager.getMouseRaycaster(e);
+-      if (raycaster) {
+-        transformControls.handleMouseDown(raycaster);
+-      }
+-    }
+-    if ((changedButtons & 1) && (e.buttons & 2)) { // right
+-      game.menuDragdownRight();
+-      game.setContextMenu(false);
+-    }
++    // Transform gizmos and the scene context menu are development-only.
+   }
+   if ((changedButtons & 4) && (e.buttons & 4)) { // middle
+     e.preventDefault();
+diff --git a/game.js b/game.js
+--- a/game.js
++++ b/game.js
+@@ -316,8 +316,12 @@ let mouseDomEquipmentHoverPhysicsId = 0;
+ 
+ // let selectedLoadoutIndex = -1;
+ 
++// The shipped Activity has no player-build mode. Keep this explicit so every
++// legacy object mutation path remains closed even if a hidden UI is triggered.
++const _isWorldEditingEnabled = () => false;
++
+ const _use = () => {
+-  if (gameManager.getMenu() === 3) {
++  if (_isWorldEditingEnabled() && gameManager.getMenu() === 3) {
+     const itemSpec = itemSpecs3[selectedItemIndex];
+     let {start_url, filename, content} = itemSpec;
+ 
+@@ -336,7 +340,7 @@ const _use = () => {
+ 
+     gameManager.setMenu(0);
+     cameraManager.requestPointerLock();
+-  } else if (highlightedObject /* && !editedObject */) {
++  } else if (_isWorldEditingEnabled() && highlightedObject /* && !editedObject */) {
+     _grab(highlightedObject);
+     highlightedObject = null;
+     
+@@ -347,16 +351,18 @@ const _use = () => {
+     const itemSpec = itemSpecs1[selectedItemIndex];
+     itemSpec.cb();
+-  } else if (gameManager.getMenu() === 2) {
++  } else if (_isWorldEditingEnabled() && gameManager.getMenu() === 2) {
+     const inventory = loginManager.getInventory();
+     const itemSpec = inventory[selectedItemIndex];
+ 
+     world.appManager.addTrackedApp(itemSpec.id, null, deployMesh.position, deployMesh.quaternion, deployMesh.scale);
+ 
+     gameManager.setMenu(0);
+     cameraManager.requestPointerLock();
+   }
+ };
+ const _delete = () => {
++  if (!_isWorldEditingEnabled()) return;
++
+   const grabbedObject = _getGrabbedObject(0);
+   if (grabbedObject) {
+     const localPlayer = playersManager.getLocalPlayer();
+@@ -376,6 +382,8 @@ const _delete = () => {
+   }
+ };
+ const _click = e => {
++  if (!_isWorldEditingEnabled()) return;
++
+   if (_getGrabbedObject(0)) {
+     const localPlayer = playersManager.getLocalPlayer();
+     localPlayer.ungrab();
+@@ -446,6 +454,8 @@ const _mouseup = () => {
+ };
+ 
+ const _grab = object => {
++  if (!_isWorldEditingEnabled()) return;
++
+   const localPlayer = playersManager.getLocalPlayer();
+   localPlayer.grab(object);
+   
+@@ -513,7 +523,7 @@ const _gameUpdate = (timestamp, timeDiff) => {
+     const _isWear = o => localPlayer.findAction(action => action.type === 'wear' && action.instanceId === o.instanceId);
+ 
+     grabUseMesh.visible = false;
+-    if (!gameManager.editMode) {
++    if (_isWorldEditingEnabled() && !gameManager.editMode) {
+       const avatarHeight = localPlayer.avatar ? localPlayer.avatar.height : 0;
+       localVector.copy(localPlayer.position)
+         .add(localVector2.set(0, avatarHeight * (1 - localPlayer.getCrouchFactor()) * 0.5, -0.3).applyQuaternion(localPlayer.quaternion));
+@@ -1238,6 +1248,8 @@ export class GameManager extends EventTarget {
+     // return !!world.appManager.grabbedObjects[0];
+   }
+   menuRotate(direction) {
++    if (!_isWorldEditingEnabled()) return;
++
+     const object = _getGrabbedObject(0);
+     object.savedRotation.y -= direction * rotationSnap;
+   }
+@@ -1478,19 +1490,8 @@ export class GameManager extends EventTarget {
+     console.log('toggle axis');
+   }
+   async toggleEditMode() {
+-    this.editMode = !this.editMode;
+-    if (this.editMode) {
+-      if (!cameraManager.pointerLockElement) {
+-        await cameraManager.requestPointerLock();
+-      }
+-      if (this.mouseSelectedObject) {
+-        this.setMouseSelectedObject(null);
+-      }
+-      if (_getGrabbedObject(0)) {
+-        const localPlayer = playersManager.getLocalPlayer();
+-        localPlayer.ungrab();
+-      } 
+-    }
++    this.editMode = false;
++    return false;
+   }
+   isJumping() {
+     const localPlayer = playersManager.getLocalPlayer();
+@@ -1716,12 +1716,6 @@ export class GameManager extends EventTarget {
+     return localPlayer.setVoiceEndpoint(voiceId);
+   }
+   saveScene() {
+-    const scene = world.appManager.exportJSON();
+-    const s = JSON.stringify(scene, null, 2);
+-    const blob = new Blob([s], {
+-      type: 'application/json',
+-    });
+-    downloadFile(blob, 'scene.json');
+-    // console.log('got scene', scene);
++    return null;
+   }
+   update = _gameUpdate;

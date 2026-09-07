@@ -1,0 +1,105 @@
+diff --git a/metaverse_modules/jarvis-cartoon-city-world/index.js b/metaverse_modules/jarvis-cartoon-city-world/index.js
+index 45acfa1..54d4c09 100644
+--- a/metaverse_modules/jarvis-cartoon-city-world/index.js
++++ b/metaverse_modules/jarvis-cartoon-city-world/index.js
+@@ -23,6 +23,17 @@ const SECTORS = [
+   ['south-west', -70, -20, -80, -37.5], ['south-center', -20, 20, -80, -37.5], ['south-east', 20, 70, -80, -37.5],
+ ].map(([id, minX, maxX, minZ, maxZ]) => ({id, minX, maxX, minZ, maxZ}));
+ 
++// The Plaza has sightlines into all eight neighbouring city cells. Those cells
++// are required visual ground, regardless of the selected detail profile.
++const PLAZA_REQUIRED_SECTOR_IDS = new Set([
++  'north-west', 'north-center', 'north-east',
++  'north-central-west', 'north-central-center', 'north-central-east',
++  'south-central-west', 'south-central-center', 'south-central-east',
++]);
++const GROUND_ROOT_PATTERN = /^(road_|Set_)/i;
++const VEHICLE_ROOT_PATTERN = /^(Car_|Futuristic_Car_|Van\.)/i;
++const CITY_DEVELOPMENT_VALIDATION = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
++
+ // Static primitive colliders are deliberate: buildings and large street props
+ // block the player/camera without turning the decorative city into thousands of
+ // mesh colliders or dynamic rigid bodies.
+@@ -112,6 +123,48 @@ const disposeObject = object => {
+   });
+ };
+ 
++const prepareSectorVisuals = (group, sector) => {
++  let surfaceRoots = 0;
++  const vehicleRoots = [];
++
++  for (const root of group.children) {
++    const criticalGround = GROUND_ROOT_PATTERN.test(root.name);
++    const vehicle = VEHICLE_ROOT_PATTERN.test(root.name);
++    if (criticalGround) surfaceRoots++;
++    if (vehicle) vehicleRoots.push(root);
++
++    root.traverse(node => {
++      if (!node.isMesh) return;
++      node.castShadow = false;
++      node.receiveShadow = true;
++      // GLTF road and sidewalk roots are very flat. Their imported bounds are
++      // valid for geometry, but too thin for reliable camera-angle culling.
++      // Keep only this critical walking surface visible at every angle.
++      node.frustumCulled = !criticalGround;
++      if (!criticalGround) return;
++      const materials = Array.isArray(node.material) ? node.material : [node.material];
++      for (const material of materials) {
++        if (!material || material.transparent || material.opacity < 1) continue;
++        material.depthTest = true;
++        material.depthWrite = true;
++        material.side = THREE.DoubleSide;
++        material.needsUpdate = true;
++      }
++    });
++  }
++
++  if (CITY_DEVELOPMENT_VALIDATION) {
++    if (!surfaceRoots) console.warn(`Jarvis City sector ${sector.id} has no walking surface.`);
++    for (const vehicle of vehicleRoots) {
++      const bounds = new THREE.Box3().setFromObject(vehicle);
++      if (!Number.isFinite(bounds.min.y) || !Number.isFinite(bounds.max.y) || bounds.min.y > 0.35 || bounds.min.y < -1) {
++        console.warn(`Jarvis City vehicle ${vehicle.name} has an invalid ground offset in ${sector.id}.`);
++      }
++    }
++  }
++  return surfaceRoots;
++};
++
+ export default e => {
+   const app = useApp();
+   const physics = usePhysics();
+@@ -192,12 +245,7 @@ export default e => {
+         }
+         const group = gltf.scene;
+         group.name = `cartoon-city-sector:${sector.id}`;
+-        group.traverse(node => {
+-          if (!node.isMesh) return;
+-          node.castShadow = false;
+-          node.receiveShadow = true;
+-          node.frustumCulled = true;
+-        });
++        prepareSectorVisuals(group, sector);
+         app.add(group);
+         loaded.set(sector.id, group);
+         failures.delete(sector.id);
+@@ -235,15 +283,10 @@ export default e => {
+     disposeObject(group);
+   };
+ 
+-  // Plaza and its four street-facing neighbours are ready before the avatar is shown.
+-  // The rest remains eligible for distance streaming after the player starts moving.
+-  const initialSectorIds = new Set([
+-    'north-central-center',
+-    'north-center',
+-    'north-central-west',
+-    'north-central-east',
+-    'south-central-center',
+-  ]);
++  // Load the complete 3x3 Plaza ring before entry. The remaining outer city
++  // stays distance-streamed, but no nearby road, sidewalk or city block can
++  // be missing while its props are already visible.
++  const initialSectorIds = PLAZA_REQUIRED_SECTOR_IDS;
+   e.waitUntil(
+     Promise.all(SECTORS.filter(sector => initialSectorIds.has(sector.id)).map(loadInitialSector))
+       .then(() => {

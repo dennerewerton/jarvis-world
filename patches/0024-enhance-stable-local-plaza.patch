@@ -1,0 +1,267 @@
+diff --git a/metaverse_modules/jarvis-baseline-world/index.js b/metaverse_modules/jarvis-baseline-world/index.js
+index 97101f7..6e58000 100644
+--- a/metaverse_modules/jarvis-baseline-world/index.js
++++ b/metaverse_modules/jarvis-baseline-world/index.js
+@@ -1,90 +1,223 @@
+ import * as THREE from 'three';
+ import metaversefile from 'metaversefile';
+ 
+ const {useApp, useCleanup, usePhysics} = metaversefile;
+ 
+-const makeBox = (size, color, position) => {
++const materials = {
++  asphalt: new THREE.MeshStandardMaterial({color: 0x16283b, roughness: 0.92}),
++  paving: new THREE.MeshStandardMaterial({color: 0x8aa0ae, roughness: 0.8}),
++  curb: new THREE.MeshStandardMaterial({color: 0xd4dde2, roughness: 0.72}),
++  water: new THREE.MeshStandardMaterial({
++    color: 0x29c7df,
++    emissive: 0x07576d,
++    emissiveIntensity: 0.28,
++    roughness: 0.2,
++    metalness: 0.18,
++    transparent: true,
++    opacity: 0.86,
++  }),
++  metal: new THREE.MeshStandardMaterial({color: 0x314b60, roughness: 0.42, metalness: 0.78}),
++  warmLight: new THREE.MeshStandardMaterial({color: 0xffe1a3, emissive: 0xf59e0b, emissiveIntensity: 0.8}),
++  window: new THREE.MeshStandardMaterial({color: 0x163d59, emissive: 0x0b6d91, emissiveIntensity: 0.42, roughness: 0.2, metalness: 0.42}),
++  grass: new THREE.MeshStandardMaterial({color: 0x1b6b5a, roughness: 0.94}),
++  foliage: new THREE.MeshStandardMaterial({color: 0x16735f, roughness: 0.9}),
++  trunk: new THREE.MeshStandardMaterial({color: 0x513d32, roughness: 0.96}),
++};
++
++const makeBox = (size, material, position, parent) => {
+   const mesh = new THREE.Mesh(
+     new THREE.BoxGeometry(size[0], size[1], size[2]),
+-    new THREE.MeshStandardMaterial({
+-      color,
+-      roughness: 0.82,
+-      metalness: 0.04,
+-    })
++    material,
+   );
+   mesh.position.fromArray(position);
+   mesh.castShadow = true;
+   mesh.receiveShadow = true;
++  parent.add(mesh);
+   return mesh;
+ };
+ 
++const makeCylinder = (radiusTop, radiusBottom, height, material, position, parent, segments = 20) => {
++  const mesh = new THREE.Mesh(
++    new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments),
++    material,
++  );
++  mesh.position.fromArray(position);
++  mesh.castShadow = true;
++  mesh.receiveShadow = true;
++  parent.add(mesh);
++  return mesh;
++};
++
++const addTree = (position, scale, parent) => {
++  const tree = new THREE.Group();
++  tree.position.fromArray(position);
++  makeCylinder(0.16 * scale, 0.22 * scale, 2.2 * scale, materials.trunk, [0, 1.1 * scale, 0], tree, 10);
++  const canopy = new THREE.Mesh(
++    new THREE.ConeGeometry(1.2 * scale, 3.7 * scale, 10),
++    materials.foliage,
++  );
++  canopy.position.y = 3.25 * scale;
++  canopy.castShadow = true;
++  canopy.receiveShadow = true;
++  tree.add(canopy);
++  parent.add(tree);
++};
++
++const addLamp = (position, parent) => {
++  const lamp = new THREE.Group();
++  lamp.position.fromArray(position);
++  makeCylinder(0.07, 0.12, 4.1, materials.metal, [0, 2.05, 0], lamp, 10);
++  makeCylinder(0.38, 0.38, 0.15, materials.metal, [0, 4.03, 0], lamp, 12);
++  makeCylinder(0.27, 0.27, 0.2, materials.warmLight, [0, 3.83, 0], lamp, 12);
++  parent.add(lamp);
++};
++
++const addBench = (position, rotation, parent) => {
++  const bench = new THREE.Group();
++  bench.position.fromArray(position);
++  bench.rotation.y = rotation;
++  const wood = new THREE.MeshStandardMaterial({color: 0x9b653f, roughness: 0.76});
++  makeBox([2.2, 0.14, 0.45], wood, [0, 0.72, 0], bench);
++  makeBox([2.2, 0.6, 0.12], wood, [0, 1.14, 0.17], bench);
++  for (const x of [-0.78, 0.78]) {
++    makeBox([0.11, 0.65, 0.35], materials.metal, [x, 0.35, 0], bench);
++  }
++  parent.add(bench);
++};
++
++const addBuilding = (spec, parent) => {
++  const {size, color, position, facing} = spec;
++  const building = new THREE.Group();
++  building.position.fromArray(position);
++  const facade = new THREE.MeshStandardMaterial({color, roughness: 0.64, metalness: 0.16});
++  makeBox(size, facade, [0, size[1] / 2, 0], building);
++  makeBox([size[0] + 0.6, 0.55, size[2] + 0.6], materials.metal, [0, size[1] + 0.27, 0], building);
++
++  const isZFacade = facing === 'north' || facing === 'south';
++  const direction = facing === 'north' || facing === 'east' ? 1 : -1;
++  const facadeWidth = isZFacade ? size[0] : size[2];
++  const facadeDepth = isZFacade ? size[2] : size[0];
++  const windowRows = Math.max(2, Math.floor((size[1] - 3) / 3));
++  const windowColumns = Math.max(2, Math.floor((facadeWidth - 2) / 2.6));
++  for (let row = 0; row < windowRows; row++) {
++    for (let column = 0; column < windowColumns; column++) {
++      const offset = (column - (windowColumns - 1) / 2) * 2.25;
++      const y = 3.1 + row * 2.7;
++      const window = makeBox(
++        isZFacade ? [1.25, 1.38, 0.08] : [0.08, 1.38, 1.25],
++        materials.window,
++        isZFacade ? [offset, y, direction * (facadeDepth / 2 + 0.05)] : [direction * (facadeDepth / 2 + 0.05), y, offset],
++        building,
++      );
++      window.castShadow = false;
++    }
++  }
++  const entrance = makeBox(
++    isZFacade ? [3.1, 2.7, 0.16] : [0.16, 2.7, 3.1],
++    materials.metal,
++    isZFacade ? [0, 1.35, direction * (facadeDepth / 2 + 0.1)] : [direction * (facadeDepth / 2 + 0.1), 1.35, 0],
++    building,
++  );
++  entrance.castShadow = false;
++  const awning = makeBox(
++    isZFacade ? [4.3, 0.2, 1.25] : [1.25, 0.2, 4.3],
++    materials.warmLight,
++    isZFacade ? [0, 3.0, direction * (facadeDepth / 2 + 0.62)] : [direction * (facadeDepth / 2 + 0.62), 3.0, 0],
++    building,
++  );
++  awning.castShadow = false;
++  parent.add(building);
++};
++
+ export default () => {
+   const app = useApp();
+   const physics = usePhysics();
+   const floorSize = 120;
+ 
++  const sky = new THREE.Mesh(
++    new THREE.SphereGeometry(95, 28, 18),
++    new THREE.MeshBasicMaterial({color: 0x10233e, side: THREE.BackSide}),
++  );
++  sky.position.y = 38;
++  sky.frustumCulled = false;
++  app.add(sky);
++
+   const ground = new THREE.Mesh(
+     new THREE.BoxGeometry(floorSize, 0.5, floorSize),
+-    new THREE.MeshStandardMaterial({
+-      color: 0x20384d,
+-      roughness: 0.9,
+-      metalness: 0,
+-    })
++    materials.asphalt,
+   );
+   ground.position.set(0, -0.25, 0);
+   ground.receiveShadow = true;
+   app.add(ground);
+ 
++  const boulevard = new THREE.Group();
++  makeBox([10, 0.1, 104], materials.paving, [0, 0.05, 0], boulevard);
++  makeBox([104, 0.1, 10], materials.paving, [0, 0.06, 0], boulevard);
++  for (const [x, z, width, depth] of [[-5.25, 0, 0.28, 104], [5.25, 0, 0.28, 104], [0, -5.25, 104, 0.28], [0, 5.25, 104, 0.28]]) {
++    makeBox([width, 0.12, depth], materials.curb, [x, 0.12, z], boulevard);
++  }
++  app.add(boulevard);
++
+   const plaza = new THREE.Mesh(
+-    new THREE.CylinderGeometry(14, 14, 0.12, 48),
+-    new THREE.MeshStandardMaterial({
+-      color: 0x62c7e8,
+-      roughness: 0.58,
+-      metalness: 0.08,
+-    })
++    new THREE.CylinderGeometry(18, 18, 0.14, 48),
++    materials.paving,
+   );
+-  plaza.position.y = 0.06;
++  plaza.position.y = 0.08;
+   plaza.receiveShadow = true;
+   app.add(plaza);
+ 
+   const fountain = new THREE.Group();
+-  fountain.add(makeBox([5.5, 0.7, 5.5], 0x0e5b85, [0, 0.42, 0]));
+-  fountain.add(makeBox([2.2, 2.8, 2.2], 0xc6e8f1, [0, 1.9, 0]));
+-  fountain.add(makeBox([0.5, 2.4, 0.5], 0x72e7ff, [0, 4.45, 0]));
++  makeCylinder(6.1, 6.1, 0.58, materials.curb, [0, 0.34, 0], fountain, 36);
++  makeCylinder(5.5, 5.5, 0.18, materials.water, [0, 0.67, 0], fountain, 36);
++  makeCylinder(1.95, 2.35, 1.3, materials.metal, [0, 1.24, 0], fountain, 18);
++  makeCylinder(0.42, 0.56, 3.4, materials.water, [0, 3.52, 0], fountain, 16);
++  makeCylinder(0.78, 0.78, 0.12, materials.warmLight, [0, 5.24, 0], fountain, 18);
++  for (let index = 0; index < 8; index++) {
++    const angle = (index / 8) * Math.PI * 2;
++    makeCylinder(0.1, 0.16, 1.55, materials.water, [Math.cos(angle) * 3.8, 1.5, Math.sin(angle) * 3.8], fountain, 8);
++  }
+   app.add(fountain);
+ 
+   const buildingSpecs = [
+-    [[14, 16, 14], 0x405b78, [-26, 8, -25]],
+-    [[18, 24, 12], 0x654c8c, [28, 12, -28]],
+-    [[12, 11, 18], 0x3b7768, [-28, 5.5, 25]],
+-    [[20, 15, 10], 0x80566a, [30, 7.5, 27]],
++    {size: [17, 18, 13], color: 0x2f5877, position: [-29, 0, -27], facing: 'south'},
++    {size: [19, 25, 14], color: 0x61477e, position: [30, 0, -29], facing: 'south'},
++    {size: [14, 14, 20], color: 0x287164, position: [-30, 0, 28], facing: 'north'},
++    {size: [21, 17, 12], color: 0x79465f, position: [30, 0, 28], facing: 'north'},
+   ];
+-  for (const [size, color, position] of buildingSpecs) {
+-    app.add(makeBox(size, color, position));
+-  }
+-
+-  const pathMaterial = new THREE.MeshStandardMaterial({
+-    color: 0xf1c867,
+-    roughness: 0.7,
+-    metalness: 0,
+-  });
+-  for (const [width, depth] of [[5, 88], [88, 5]]) {
+-    const path = new THREE.Mesh(new THREE.BoxGeometry(width, 0.08, depth), pathMaterial);
+-    path.position.y = 0.08;
+-    path.receiveShadow = true;
+-    app.add(path);
++  for (const building of buildingSpecs) addBuilding(building, app);
++
++  const park = new THREE.Group();
++  for (const [x, z, width, depth] of [[-42, -6, 17, 25], [42, -6, 17, 25], [-42, 26, 17, 16], [42, 26, 17, 16]]) {
++    makeBox([width, 0.08, depth], materials.grass, [x, 0.05, z], park);
++  }
++  for (const [x, z, scale] of [[-39, -14, 1.15], [-46, -3, 0.88], [39, -14, 1.1], [46, -3, 0.9], [-39, 23, 1.05], [-46, 32, 0.82], [39, 23, 1.1], [46, 32, 0.85]]) {
++    addTree([x, 0.1, z], scale, park);
++  }
++  app.add(park);
++
++  const promenade = new THREE.Group();
++  for (const [x, z] of [[-12, -12], [12, -12], [-12, 12], [12, 12], [-23, 0], [23, 0]]) addLamp([x, 0.1, z], promenade);
++  addBench([-11, 0.12, -6.8], 0, promenade);
++  addBench([11, 0.12, 6.8], Math.PI, promenade);
++  addBench([-6.8, 0.12, 11], Math.PI / 2, promenade);
++  addBench([6.8, 0.12, -11], -Math.PI / 2, promenade);
++  app.add(promenade);
++
++  for (const [x, z] of [[-18, -18], [18, -18], [-18, 18], [18, 18]]) {
++    makeCylinder(1.9, 1.9, 0.35, materials.curb, [x, 0.25, z], app, 18);
++    addTree([x, 0.4, z], 0.72, app);
+   }
+ 
+   const floorPhysicsId = physics.addBoxGeometry(
+     new THREE.Vector3(0, -0.25, 0),
+     new THREE.Quaternion(),
+     new THREE.Vector3(floorSize / 2, 0.25, floorSize / 2),
+     false
+   );
+ 
+   useCleanup(() => {
+     physics.removeGeometry(floorPhysicsId);
+   });
+ 
+   return app;
+ };

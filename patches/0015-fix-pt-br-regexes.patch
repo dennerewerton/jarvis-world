@@ -1,0 +1,42 @@
+diff --git a/src/jarvis-compat/pt-BR.js b/src/jarvis-compat/pt-BR.js
+index f06b8ee..75678d9 100644
+--- a/src/jarvis-compat/pt-BR.js
++++ b/src/jarvis-compat/pt-BR.js
+@@ -82,24 +82,24 @@ const exactTranslations = new Map([
+ ]);
+ 
+ const patternedTranslations = [
+-  [/^世\\s+World$/, 'Mundo'],
+-  [/^設定\\s+Settings$/, 'Configurações'],
+-  [/^モード\\s+Mode$/, 'Modo'],
+-  [/^隠れる\\s+Hide$/, 'Ocultar'],
+-  [/^仮想現実\\s+VR\\s*\\(no\\)$/, 'RV (indisponível)'],
+-  [/^仮想現実\\s+VR$/, 'RV'],
+-  [/^ログイン\\s+Log in$/, 'Entrar'],
+-  [/^品\\s+Claims\\s*\\((\\d+)\\)$/, 'Itens recebidos ($1)'],
+-  [/^World Tokens\\s*\\((\\d+)\\)$/, 'Objetos do mundo ($1)'],
+-  [/^Lv\\.\\s*(\\d+)$/, 'Nv. $1'],
+-  [/^Dev Alpha(?: Season)?\\s*(.*)$/, 'Temporada Alfa de Desenvolvimento $1'],
+-  [/^API Key(?: \\(set\\))?$/, 'Chave de API'],
++  [/^世\s+World$/, 'Mundo'],
++  [/^設定\s+Settings$/, 'Configurações'],
++  [/^モード\s+Mode$/, 'Modo'],
++  [/^隠れる\s+Hide$/, 'Ocultar'],
++  [/^仮想現実\s+VR\s*\(no\)$/, 'RV (indisponível)'],
++  [/^仮想現実\s+VR$/, 'RV'],
++  [/^ログイン\s+Log in$/, 'Entrar'],
++  [/^品\s+Claims\s*\((\d+)\)$/, 'Itens recebidos ($1)'],
++  [/^World Tokens\s*\((\d+)\)$/, 'Objetos do mundo ($1)'],
++  [/^Lv\.\s*(\d+)$/, 'Nv. $1'],
++  [/^Dev Alpha(?: Season)?\s*(.*)$/, 'Temporada Alfa de Desenvolvimento $1'],
++  [/^API Key(?: \(set\))?$/, 'Chave de API'],
+   [/^LMB USE Q LORE R DROP$/, 'BOTÃO ESQ.: USAR · Q: EMOTES · R: SOLTAR'],
+ ];
+ 
+ export const translatePtBr = value => {
+   if (typeof value !== 'string') return value;
+-  const match = value.match(/^(\\s*)(.*?)(\\s*)$/s);
++  const match = value.match(/^(\s*)(.*?)(\s*)$/s);
+   const prefix = match[1];
+   const core = match[2];
+   const suffix = match[3];

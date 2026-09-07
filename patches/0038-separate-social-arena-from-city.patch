@@ -1,0 +1,23 @@
+diff --git a/metaverse_modules/jarvis-cartoon-city-world/index.js b/metaverse_modules/jarvis-cartoon-city-world/index.js
+--- a/metaverse_modules/jarvis-cartoon-city-world/index.js
++++ b/metaverse_modules/jarvis-cartoon-city-world/index.js
+@@ -108,4 +108,4 @@ export default e => {
+  const ground = new THREE.Mesh(
+-    new THREE.BoxGeometry(180, 0.5, 180),
++    new THREE.BoxGeometry(240, 0.5, 240),
+  new THREE.MeshStandardMaterial({color: 0x58788d, roughness: 0.95}),
+  );
+@@ -119,3 +119,3 @@ export default e => {
+  physicsIds.push(physics.addBoxGeometry(
+-    new THREE.Vector3(0, -0.25, 0), new THREE.Quaternion(), new THREE.Vector3(90, 0.25, 90), false,
++    new THREE.Vector3(0, -0.25, 0), new THREE.Quaternion(), new THREE.Vector3(120, 0.25, 120), false,
+  ));
+@@ -129,7 +129,7 @@ export default e => {
+   addBeacon(app, [10, 0.02, 14], 0x4ec9ff, 2.1); // Shop
+   addBeacon(app, [8, 0.02, -14], 0xe06cff, 2.1); // Arcade
+   addBeacon(app, [-34, 0.02, -14], 0xffc45a, 2.1); // Casino
+-  addBeacon(app, [34, 0.02, -38], 0xff6f8d, 2.1); // Arena
++  addBeacon(app, [0, 0.02, -108], 0xff6f8d, 2.8); // Arena: separate social/parkour destination south of the city
+   addBeacon(app, [-34, 0.02, 14], 0x7fe0a3, 2.1); // Event Center
+   addBeacon(app, [-7, 0.02, 25], 0xffee87, 1.6); // Daily terminal
+ 

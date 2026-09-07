@@ -1,0 +1,13 @@
+diff --git a/src/DomRenderer.jsx b/src/DomRenderer.jsx
+index dccc53b..fc23939 100644
+--- a/src/DomRenderer.jsx
++++ b/src/DomRenderer.jsx
+@@ -26,7 +26,7 @@ const _getFov = () => camera.projectionMatrix.elements[ 5 ] * (window.innerHeigh
+ 
+ function epsilon(value) {
+   return value;
+-  // return Math.abs(value) < 1e-10 ? 0 : value;
++  // Legacy near-zero normalization remains intentionally disabled.
+ }
+ function getObjectCSSMatrix( matrix, cameraCSSMatrix ) {
+   var elements = matrix.elements;

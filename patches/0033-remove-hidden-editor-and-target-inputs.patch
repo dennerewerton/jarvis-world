@@ -1,0 +1,136 @@
+diff --git a/io-manager.js b/io-manager.js
+index 7994988..d6c2f4f 100644
+--- a/io-manager.js
++++ b/io-manager.js
+@@ -594,18 +594,7 @@ ioManager.keyup = e => {
+     } */
+     case 74: { // J
+-      game.inventoryHack = !game.inventoryHack;
+-      break;
+-    }
+-    case 27: { // esc
+-      game.setContextMenu(false);
+-      break;
+-    }
+-    case 72: { // H
+-      const debug = metaversefile.useDebug();
+-      debug.toggle();
+-      break;
+-    }
+-    case 192: { // tilde
+-      game.toggleEditMode();
++    case 72: // H
++    case 192: // tilde / quote on Brazilian keyboard layouts
++      // Development, inventory-hack and construction shortcuts are disabled.
+       break;
+     }
+@@ -784,7 +773,7 @@ ioManager.mousedown = e => {
+       game.menuMouseDown();
+     }
+     if ((changedButtons & 2) && (e.buttons & 2)) { // right
+-      game.menuAim();
++      // Right mouse is intentionally inert in the social, non-combat world.
+     }
+   } else {
+     // Transform gizmos and the scene context menu are development-only.
+@@ -796,6 +785,6 @@ ioManager.mousedown = e => {
+     if (!cameraManager.pointerLockElement) {
+       cameraManager.requestPointerLock();
+     }
+-    game.menuMiddleDown();
++    // The middle button does not activate targeting in the final game.
+   }
+   lastMouseButtons = e.buttons;
+diff --git a/game.js b/game.js
+index 8bf47db..dd742b7 100644
+--- a/game.js
++++ b/game.js
+@@ -23,7 +23,6 @@ import * as sounds from './sounds.js';
+ import {playersManager} from './players-manager.js';
+ import physicsManager from './physics-manager.js';
+ import npcManager from './npc-manager.js';
+ import raycastManager from './raycast-manager.js';
+-import zTargeting from './z-targeting.js';
+ import Avatar from './avatars/avatars.js';
+ import {makeId} from './util.js'
+@@ -558,6 +557,5 @@ const _gameUpdate = (timestamp, timeDiff) => {
+   };
+   _updateGrab();
+ 
+-  zTargeting.update(timestamp, timeDiff);
+ 
+   const _handlePickUp = () => {
+@@ -1151,51 +1151,13 @@ export class GameManager extends EventTarget {
+   menuMouseUp() {
+     _mouseup();
+   }
+  menuAim() {
+-    if (!_isWorldEditingEnabled()) return;
+-
+-    const localPlayer = playersManager.getLocalPlayer();
+-    if (!localPlayer.hasAction('aim')) {
+-      const wearApp = loadoutManager.getSelectedApp();
+-      const wearAimApp = (() => {
+-        if (wearApp) {
+-          const aimComponent = wearApp.getComponent('aim');
+-          if (aimComponent) {
+-            return wearApp;
+-          }
+-        }
+-        return null;
+-      })();
+-      const wearAimComponent = wearAimApp?.getComponent('aim');
+-
+-      const {instanceId} = wearAimApp ?? {};
+-      const {appAnimation, playerAnimation, boneAttachment, position, quaternion, scale} = wearAimComponent ?? {};
+-      const aimAction = {
+-        type: 'aim',
+-        instanceId,
+-        appAnimation,
+-        playerAnimation,
+-        boneAttachment,
+-        position,
+-        quaternion,
+-        scale,
+-      };
+-      localPlayer.addAction(aimAction);
+-    }
++    return false;
+   }
+   menuUnaim() {
+-    const localPlayer = playersManager.getLocalPlayer();
+-    const aimAction = localPlayer.getAction('aim');
+-    if (aimAction) {
+-      localPlayer.removeAction('aim');
+-    }
++    return false;
+   }
+   menuMiddleDown() {
+-    zTargeting.handleDown();
+-
+-    // zTargetCenter
+-    // zTargetObject
+-    // zTargetEnemy
+-    // zTargetCancel
++    return false;
+   }
+   menuMiddle() {
+@@ -1213,16 +1176,8 @@ export class GameManager extends EventTarget {
+     } */
+   }
+   menuMiddleUp() {
+-    zTargeting.handleUp();
+-
+-    // this.dragging = false;
+-    
+-    /* world.appManager.dispatchEvent(new MessageEvent('dragchange', {
+-      data: {
+-        dragging: this.dragging,
+-      },
+-    })); */
++    return false;
+   }
+   menuMiddleToggle() {
+-    zTargeting.toggle();
++    return false;
+   }

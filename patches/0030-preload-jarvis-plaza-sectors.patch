@@ -1,0 +1,63 @@
+diff --git a/metaverse_modules/jarvis-cartoon-city-world/index.js b/metaverse_modules/jarvis-cartoon-city-world/index.js
+index 0e6f6e7..b7e7f5a 100644
+--- a/metaverse_modules/jarvis-cartoon-city-world/index.js
++++ b/metaverse_modules/jarvis-cartoon-city-world/index.js
+@@ -64,7 +64,7 @@ export default e => {
+   const physicsIds = [];
+   let disposed = false;
+   let core;
+-  let streamFailed = false;
++  let lastStreamingErrorAt = -Infinity;
+ 
+   app.setComponent('cityQuality', app.getComponent('cityQuality') || DEFAULT_QUALITY);
+   app.setComponent('citySource', 'ithappy-cartoon-city-free-v1');
+@@ -164,17 +164,29 @@ export default e => {
+     disposeObject(group);
+   };
+ 
+-  const initialSector = SECTORS.find(sector => sector.id === 'north-central-center');
+-  e.waitUntil(loadSector(initialSector));
++  // Plaza and its four street-facing neighbours are ready before the avatar is shown.
++  // The rest remains eligible for distance streaming after the player starts moving.
++  const initialSectorIds = new Set([
++    'north-central-center',
++    'north-center',
++    'north-central-west',
++    'north-central-east',
++    'south-central-center',
++  ]);
++  e.waitUntil(Promise.all(
++    SECTORS.filter(sector => initialSectorIds.has(sector.id)).map(loadSector),
++  ));
+ 
+-  useFrame(({timestamp}) => {
+-    if (streamFailed) return;
++  useFrame(({timestamp = performance.now()} = {}) => {
+     try {
+-      if (core) core.rotation.y = timestamp / 1500;
++      if (core && Number.isFinite(timestamp)) core.rotation.y = timestamp / 1500;
++      const playerPosition = localPlayer?.position;
++      // The first frame can run before the avatar/player transform is fully bound.
++      if (!playerPosition?.isVector3) return;
+       const quality = app.getComponent('cityQuality');
+       const loadDistance = QUALITY_LOAD_DISTANCE[quality] || QUALITY_LOAD_DISTANCE.auto;
+       for (const sector of SECTORS) {
+-        const distance = distanceToSector(localPlayer.position, sector);
++        const distance = distanceToSector(playerPosition, sector);
+         if (distance <= loadDistance) {
+           loadSector(sector);
+         } else if (distance > loadDistance + UNLOAD_MARGIN) {
+@@ -188,8 +200,10 @@ export default e => {
+         }
+       }
+     } catch (error) {
+-      // A sector problem must not take down the authenticated Activity shell.
+-      streamFailed = true;
+-      console.error('Jarvis Cartoon City streaming disabled after a runtime error.', error);
++      // A transient player binding error must not blank the Plaza or disable streaming.
++      if (timestamp - lastStreamingErrorAt > 5_000) {
++        lastStreamingErrorAt = timestamp;
++        console.error('Jarvis Cartoon City streaming will retry after a runtime error.', error);
++      }
+     }
+   });

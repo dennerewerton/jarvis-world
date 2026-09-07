@@ -1,0 +1,37 @@
+diff --git a/src/main.jsx b/src/main.jsx
+index 6715765..444680d 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -6,7 +6,31 @@ import {installPtBrLocalization} from './jarvis-compat/pt-BR.js';
+ 
+ //
+ 
+-const WebaverseApp = React.lazy(() => import('./components/app').then(module => ({
++const transientModuleFailure = error => /(?:Failed to fetch dynamically imported module|Importing a module script failed|Outdated Optimize Dep)/i
++  .test(String(error?.message || error));
++
++const loadWebaverseModule = async () => {
++  const attempts = [
++    {delay: 0, load: () => import('./components/app')},
++    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1')},
++    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2')},
++  ];
++  let lastError;
++  for (const attempt of attempts) {
++    if (attempt.delay) {
++      await new Promise(resolve => setTimeout(resolve, attempt.delay));
++    }
++    try {
++      return await attempt.load();
++    } catch (error) {
++      lastError = error;
++      if (!transientModuleFailure(error)) throw error;
++    }
++  }
++  throw lastError;
++};
++
++const WebaverseApp = React.lazy(() => loadWebaverseModule().then(module => ({
+   default: module.App,
+ })));
+ 

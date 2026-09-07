@@ -1,0 +1,165 @@
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+index 5c7ffad..cd69c58 100644
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -14,9 +14,9 @@ import { world } from '../../../world';
+ 
+-import { Crosshair } from '../general/crosshair';
+ import { IoHandler, registerIoEventHandler, unregisterIoEventHandler } from '../general/io-handler';
+ import { ZoneTitleCard } from '../general/zone-title-card';
+ import { LoadingBox } from '../../LoadingBox.jsx';
+ import { PlayMode } from '../play-mode';
+ import SocialHeader from '../../SocialHeader.jsx';
++import SocialHud from '../../SocialHud.jsx';
+ import QuickMenu from '../../QuickMenu.jsx';
+ import {DomRenderer} from '../../DomRenderer.jsx';
+@@ -267,7 +267,7 @@ export const App = () => {
+                 <SocialHeader />
+                 <DomRenderer />
+                 <Canvas app={app} />
+-                <Crosshair />
++                <SocialHud />
+                 <PlayMode />
+                 <IoHandler />
+                 <QuickMenu />
+diff --git a/src/QuickMenu.jsx b/src/QuickMenu.jsx
+index e6e1465..0f22cad 100644
+--- a/src/QuickMenu.jsx
++++ b/src/QuickMenu.jsx
+@@ -61,6 +61,20 @@ export default function QuickMenu() {
+     }
+   };
+ 
++  useEffect(() => {
++    const openFromSocialHud = () => {
++      if (open) return;
++      cameraManager.requestPointerLock();
++      setOpen(true);
++      setDown(false);
++      setCoords([0, 0]);
++    };
++    window.addEventListener('jarvis-open-emotes', openFromSocialHud);
++    return () => {
++      window.removeEventListener('jarvis-open-emotes', openFromSocialHud);
++    };
++  }, [open]);
++
+   const _getSelectedEmote = () => {
+     if (selectedSlice !== -1 && selectedDepth !== -1) {
+       return emotes[selectedSlice].name + (selectedDepth === 0 ? 'Soft' : '');
+diff --git a/src/SocialHud.jsx b/src/SocialHud.jsx
+new file mode 100644
+--- /dev/null
++++ b/src/SocialHud.jsx
+@@ -0,0 +1,39 @@
++import React, {useContext, useState} from 'react';
++
++import {AppContext} from './components/app';
++import styles from './SocialHud.module.css';
++
++export default function SocialHud() {
++  const {state, setState} = useContext(AppContext);
++  const [showControls, setShowControls] = useState(false);
++
++  const openChat = () => {
++    setState({openedPanel: state.openedPanel === 'ChatPanel' ? null : 'ChatPanel'});
++  };
++  const openEmotes = () => {
++    setShowControls(false);
++    window.dispatchEvent(new Event('jarvis-open-emotes'));
++  };
++
++  return (
++    <nav className={styles.hud} aria-label="Acoes sociais">
++      {showControls ? (
++        <div className={styles.controls}>
++          <strong>Controles</strong>
++          <span>WASD mover · Espaco pular</span>
++          <span>Roda do mouse aproxima a camera</span>
++          <span>Enter ou Chat para conversar · Q para emotes</span>
++        </div>
++      ) : null}
++      <div className={styles.actions}>
++        <button type="button" className={state.openedPanel === 'ChatPanel' ? styles.active : ''} onClick={openChat}>
++          Chat
++        </button>
++        <button type="button" onClick={openEmotes}>Emotes</button>
++        <button type="button" className={showControls ? styles.active : ''} onClick={() => setShowControls(value => !value)}>
++          Controles
++        </button>
++      </div>
++    </nav>
++  );
++}
+diff --git a/src/SocialHud.module.css b/src/SocialHud.module.css
+new file mode 100644
+--- /dev/null
++++ b/src/SocialHud.module.css
+@@ -0,0 +1,67 @@
++.hud {
++  position: fixed;
++  left: 18px;
++  bottom: 18px;
++  z-index: 4;
++  display: flex;
++  flex-direction: column;
++  align-items: flex-start;
++  gap: 8px;
++  color: #eaf9ff;
++  font-family: Muli, Arial, sans-serif;
++  pointer-events: none;
++  user-select: none;
++}
++
++.actions,
++.controls {
++  pointer-events: auto;
++  border: 1px solid rgba(86, 219, 255, 0.55);
++  background: rgba(5, 20, 35, 0.86);
++  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
++  backdrop-filter: blur(5px);
++}
++
++.actions {
++  display: flex;
++  overflow: hidden;
++  border-radius: 10px;
++}
++
++.actions button {
++  min-height: 38px;
++  padding: 0 13px;
++  border: 0;
++  border-right: 1px solid rgba(126, 224, 255, 0.25);
++  background: transparent;
++  color: inherit;
++  font: inherit;
++  font-size: 13px;
++  cursor: pointer;
++}
++
++.actions button:last-child {
++  border-right: 0;
++}
++
++.actions button:hover,
++.actions button:focus-visible,
++.actions button.active {
++  outline: none;
++  background: rgba(61, 190, 231, 0.32);
++}
++
++.controls {
++  display: grid;
++  gap: 5px;
++  max-width: 290px;
++  padding: 11px 13px;
++  border-radius: 10px;
++  font-size: 12px;
++  line-height: 1.3;
++}
++
++.controls strong {
++  color: #65ddff;
++  font-size: 13px;
++}

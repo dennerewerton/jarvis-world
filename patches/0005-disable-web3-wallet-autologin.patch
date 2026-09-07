@@ -1,0 +1,23 @@
+diff --git a/src/User.jsx b/src/User.jsx
+index c8d4c0f..88fed17 100644
+--- a/src/User.jsx
++++ b/src/User.jsx
+@@ -186,15 +186,9 @@ export const User = ({ className, address, setAddress, setLoginFrom }) => {
+ 
+             } else {
+ 
+-                if ( WebaWallet.launched ) {
+-
+-                    metamaskAutoLogin();
+-
+-                } else {
+-
+-                    WebaWallet.waitForLaunch().then( metamaskAutoLogin );
+-
+-                }
++                // Jarvis identity arrives through the authenticated Activity
++                // bridge. Never probe or initialize a Webaverse wallet.
++                setLoggingIn( false );
+ 
+             }
+ 

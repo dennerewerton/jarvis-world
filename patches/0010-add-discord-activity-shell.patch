@@ -1,0 +1,630 @@
+diff --git a/index.html b/index.html
+index 6a44166..d302bfc 100644
+--- a/index.html
++++ b/index.html
+@@ -1,8 +1,12 @@
+ <!doctype html>
+-<html>
++<html lang="pt-BR">
+ 
+ <head>
+-<title>Webaverse</title>
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<meta name="referrer" content="no-referrer">
++<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://cdn.discordapp.com data: blob:; media-src 'self' data: blob:; connect-src 'self' https://discord.com https://*.discord.com blob:; worker-src 'self' blob:">
++<title>Jarvis World</title>
+ <link href="/index.css" rel=stylesheet>
+ <!-- <link href="/mithril-ui/index.css" rel=stylesheet>
+ <link href="/mithril-ui/menu/menu.css" rel=stylesheet> -->
+diff --git a/index.mjs b/index.mjs
+index 2d424cb..b2bf73f 100644
+--- a/index.mjs
++++ b/index.mjs
+@@ -62,9 +62,20 @@ function makeId(length) {
+     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+     res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
++    res.setHeader(
++      'Content-Security-Policy',
++      "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://cdn.discordapp.com data: blob:; media-src 'self' data: blob:; connect-src 'self' https://discord.com https://*.discord.com blob:; worker-src 'self' blob:; frame-ancestors https://discord.com https://*.discord.com",
++    );
++    res.setHeader('Referrer-Policy', 'no-referrer');
++    res.setHeader('X-Content-Type-Options', 'nosniff');
+ 
+     const o = url.parse(req.originalUrl, true);
+-    if (/^\/(?:@proxy|public)\//.test(o.pathname) && o.query['import'] === undefined) {
++    if (isProduction && /^\/standalone(?:\.html)?\/?$/.test(o.pathname)) {
++      res.statusCode = 404;
++      res.end('not found');
++    } else if (!isProduction && /^\/standalone\/?$/.test(o.pathname)) {
++      return res.redirect('/standalone.html');
++    } else if (/^\/(?:@proxy|public)\//.test(o.pathname) && o.query['import'] === undefined) {
+       const u = o.pathname
+         .replace(/^\/@proxy\//, '')
+         .replace(/^\/public/, '')
+@@ -113,7 +124,7 @@ function makeId(length) {
+ 
+   const isHttps = !process.env.HTTP_ONLY && (!!certs.key && !!certs.cert);
+   const port = parseInt(process.env.PORT, 10) || (isProduction ? 443 : 3000);
+-  const wsPort = port + 1;
++  const wsPort = parseInt(process.env.WS_PORT, 10) || port + 1;
+ 
+   const _makeHttpServer = () => isHttps ? https.createServer(certs, app) : http.createServer(app);
+   const httpServer = _makeHttpServer();
+diff --git a/package.json b/package.json
+index 867b4ea..5887ded 100644
+--- a/package.json
++++ b/package.json
+@@ -15,6 +15,7 @@
+   },
+   "dependencies": {
+     "@babel/preset-react": "^7.17.12",
++    "@discord/embedded-app-sdk": "2.5.0",
+     "@pixiv/three-vrm": "./packages/three-vrm",
+     "@react-three/fiber": "^7.0.29",
+     "@shaderfrog/glsl-parser": "^0.1.23",
+diff --git a/universe.js b/universe.js
+index 3164d96..d6ee003 100644
+--- a/universe.js
++++ b/universe.js
+@@ -17,6 +17,7 @@ import {playersManager} from './players-manager.js';
+ import sceneNames from './scenes/scenes.json';
+ import {parseQuery} from './util.js';
+ import {world} from './world.js';
++import {resolveWorldsHost} from './src/jarvis-compat/worlds-host.mjs';
+ 
+ const physicsScene = physicsManager.getScene();
+ 
+@@ -29,8 +30,7 @@ class Universe extends EventTarget {
+     this.sceneLoadedPromise = null;
+   }
+   getWorldsHost() {
+-    return window.location.protocol + '//' + window.location.hostname + ':' +
+-      ((window.location.port ? parseInt(window.location.port, 10) : (window.location.protocol === 'https:' ? 443 : 80)) + 1) + '/worlds/';
++    return resolveWorldsHost(window.location);
+   }
+   async enterWorld(worldSpec) {
+     this.disconnectRoom();
+@@ -211,4 +211,4 @@ class Universe extends EventTarget {
+ }
+ const universe = new Universe();
+ 
+-export default universe;
+\ No newline at end of file
++export default universe;
+diff --git a/src/main.jsx b/src/main.jsx
+index 54ca937..96b7243 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -1,25 +1,46 @@
+ import React from 'react';
+ import ReactDOM from 'react-dom';
+ 
+-import { App } from './components/app';
+-import { ErrorPage } from './components/general/error-page';
++import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx';
+ import {installPtBrLocalization} from './jarvis-compat/pt-BR.js';
+ 
+ //
+ 
+-const WebWorkerSupport = !navigator.userAgent.match(/(Firefox|MSIE)/);
++const WebaverseApp = React.lazy(() => import('./components/app').then(module => ({
++  default: module.App,
++})));
++
++class RuntimeErrorBoundary extends React.Component {
++  constructor(props) {
++    super(props);
++    this.state = {failed: false};
++  }
++
++  static getDerivedStateFromError() {
++    return {failed: true};
++  }
++
++  componentDidCatch(error) {
++    console.error('Webaverse render failed', error);
++    window.dispatchEvent(new Event('jarvis-webaverse-runtime-error'));
++  }
++
++  render() {
++    return this.state.failed ? null : this.props.children;
++  }
++}
+ 
+ installPtBrLocalization();
+ 
+ ReactDOM.render(
+   <React.StrictMode>
+-    {
+-        WebWorkerSupport ? (
+-            <App />
+-        ) : (
+-            <ErrorPage errors={[ 'WebWorker modules' ]} />
+-        )
+-    }
+-    </React.StrictMode>,
+-    document.getElementById('root'),
++    <ActivityShell>
++      <RuntimeErrorBoundary>
++        <React.Suspense fallback={<ActivityRuntimeLoading />}>
++          <WebaverseApp />
++        </React.Suspense>
++      </RuntimeErrorBoundary>
++    </ActivityShell>
++  </React.StrictMode>,
++  document.getElementById('root'),
+ );
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+index bb5e261..6643180 100644
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -104,7 +104,10 @@ const Canvas = ({
+ 
+         if ( canvasRef.current ) {
+ 
+-            _startApp( app, canvasRef.current );
++            _startApp( app, canvasRef.current ).catch(error => {
++                console.error('Webaverse runtime startup failed', error);
++                window.dispatchEvent(new Event('jarvis-webaverse-runtime-error'));
++            });
+ 
+         }
+ 
+@@ -361,4 +364,4 @@ export const App = () => {
+         </div>
+     );
+ 
+-};
+\ No newline at end of file
++};
+diff --git a/standalone.html b/standalone.html
+new file mode 100644
+index 0000000..3a419e7
+--- /dev/null
++++ b/standalone.html
+@@ -0,0 +1,17 @@
++<!doctype html>
++<html lang="pt-BR">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <meta name="referrer" content="no-referrer">
++  <title>Jarvis World Webaverse — Standalone local</title>
++  <link href="/index.css" rel="stylesheet">
++  <link href="https://fonts.googleapis.com/css2?family=Muli:wght@400;600&display=swap" rel="stylesheet">
++</head>
++<body>
++  <div id="iframe-container"></div>
++  <div id="root"></div>
++  <script type="module" src="/pre.js"></script>
++  <script type="module" src="/src/standalone.jsx"></script>
++</body>
++</html>
+diff --git a/src/standalone.jsx b/src/standalone.jsx
+new file mode 100644
+index 0000000..381dfc7
+--- /dev/null
++++ b/src/standalone.jsx
+@@ -0,0 +1,18 @@
++import React from 'react';
++import ReactDOM from 'react-dom';
++
++import {App} from './components/app';
++import {ErrorPage} from './components/general/error-page';
++import {installPtBrLocalization} from './jarvis-compat/pt-BR.js';
++
++const WebWorkerSupport = !navigator.userAgent.match(/(Firefox|MSIE)/);
++
++installPtBrLocalization();
++
++ReactDOM.render(
++  <React.StrictMode>
++    {WebWorkerSupport ? <App /> : <ErrorPage errors={['WebWorker modules']} />}
++  </React.StrictMode>,
++  document.getElementById('root'),
++);
++
+diff --git a/src/jarvis-compat/ActivityShell.jsx b/src/jarvis-compat/ActivityShell.jsx
+new file mode 100644
+index 0000000..0eb31d9
+--- /dev/null
++++ b/src/jarvis-compat/ActivityShell.jsx
+@@ -0,0 +1,153 @@
++import React, {useCallback, useEffect, useRef, useState} from 'react';
++import {activityApi, ActivityApiError, clearActivitySession} from './activity-api.mjs';
++import {authenticateDiscord, authorizeDiscord} from './activity-discord.js';
++import styles from './activity-shell.module.css';
++
++const stageCopy = {
++  checking: ['Verificando disponibilidade…', 'Preparando uma conexão segura com os serviços do Jarvis.'],
++  waiting_discord: ['Conectando ao Discord…', 'Aguardando a autorização da Activity.'],
++  exchanging: ['Confirmando sua identidade…', 'Validando o acesso ao servidor e criando sua sessão Jarvis.'],
++  loading_profile: ['Carregando seu perfil…', 'Buscando apenas os dados necessários para entrar no mundo.'],
++  preparing_runtime: ['Preparando o Webaverse…', 'Inicializando o mundo depois da autenticação.'],
++  guild_required: ['Acesso ao Jarvis World', 'Você precisa fazer parte da comunidade autorizada para entrar.'],
++  disabled: ['Acesso ainda fechado', 'O Jarvis World ainda não está liberado para este piloto.'],
++  maintenance: ['Manutenção em andamento', 'O Jarvis World está temporariamente indisponível.'],
++  unsupported: ['WebGL indisponível', 'Ative a aceleração gráfica ou use um navegador compatível para entrar.'],
++  runtime_error: ['O mundo foi interrompido', 'O Webaverse não conseguiu continuar com segurança. Entre novamente.'],
++  error: ['Não foi possível entrar', 'Tente novamente em alguns instantes.'],
++};
++
++const hasWebGl = () => {
++  try {
++    const canvas = document.createElement('canvas');
++    const context = canvas.getContext('webgl2') || canvas.getContext('webgl');
++    context?.getExtension('WEBGL_lose_context')?.loseContext();
++    return Boolean(context);
++  } catch (err) {
++    return false;
++  }
++};
++
++const hasRequiredBrowserFeatures = () => (
++  typeof Worker !== 'undefined' &&
++  !navigator.userAgent.match(/(Firefox|MSIE)/) &&
++  hasWebGl()
++);
++
++const failureStage = error => {
++  if (error instanceof ActivityApiError && error.code === 'guild_membership_required') {
++    return {stage: 'guild_required'};
++  }
++  return {
++    stage: 'error',
++    message: error instanceof Error ? error.message : stageCopy.error[1],
++  };
++};
++
++export const ActivityRuntimeLoading = () => (
++  <main className={styles.shell} aria-live="polite">
++    <div className={styles.grid} aria-hidden="true" />
++    <section className={styles.card}>
++      <div className={styles.mark} aria-hidden="true">J</div>
++      <p className={styles.eyebrow}>DISCORD ACTIVITY</p>
++      <h1 className={styles.title}>{stageCopy.preparing_runtime[0]}</h1>
++      <p className={styles.message}>{stageCopy.preparing_runtime[1]}</p>
++    </section>
++  </main>
++);
++
++export const ActivityShell = ({children}) => {
++  const [state, setState] = useState({stage: 'checking'});
++  const attempt = useRef(0);
++
++  const start = useCallback(async () => {
++    const currentAttempt = ++attempt.current;
++    const update = next => {
++      if (attempt.current === currentAttempt) setState(next);
++    };
++    clearActivitySession();
++    try {
++      update({stage: 'checking'});
++      const health = await activityApi.health();
++      if (health.status === 'maintenance') {
++        update({stage: 'maintenance'});
++        return;
++      }
++      if (health.status !== 'ready') {
++        update({stage: 'disabled'});
++        return;
++      }
++      const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID?.trim();
++      if (!clientId) throw new Error('Client ID da Activity não configurado.');
++
++      update({stage: 'waiting_discord'});
++      const code = await authorizeDiscord(clientId);
++      update({stage: 'exchanging'});
++      const exchange = await activityApi.exchange(code);
++      let accessToken = exchange.access_token;
++      try {
++        await authenticateDiscord(clientId, accessToken);
++      } finally {
++        accessToken = '';
++      }
++
++      update({stage: 'loading_profile'});
++      await Promise.all([activityApi.me(), activityApi.wallet()]);
++      if (!hasRequiredBrowserFeatures()) {
++        update({stage: 'unsupported'});
++        return;
++      }
++      update({stage: 'preparing_runtime'});
++      update({stage: 'ready'});
++    } catch (error) {
++      clearActivitySession();
++      update(failureStage(error));
++    }
++  }, []);
++
++  useEffect(() => {
++    start();
++    return () => {
++      attempt.current += 1;
++      clearActivitySession();
++    };
++  }, [start]);
++
++  useEffect(() => {
++    const handleRuntimeFailure = () => {
++      clearActivitySession();
++      setState({stage: 'runtime_error'});
++    };
++    const handleContextLost = event => {
++      event.preventDefault();
++      handleRuntimeFailure();
++    };
++    window.addEventListener('jarvis-webaverse-runtime-error', handleRuntimeFailure);
++    document.addEventListener('webglcontextlost', handleContextLost, true);
++    return () => {
++      window.removeEventListener('jarvis-webaverse-runtime-error', handleRuntimeFailure);
++      document.removeEventListener('webglcontextlost', handleContextLost, true);
++    };
++  }, []);
++
++  if (state.stage === 'ready') return children;
++
++  const copy = stageCopy[state.stage] || stageCopy.error;
++  return (
++    <main className={styles.shell}>
++      <div className={styles.grid} aria-hidden="true" />
++      <section className={styles.card} aria-live="polite">
++        <div className={styles.mark} aria-hidden="true">J</div>
++        <p className={styles.eyebrow}>DISCORD ACTIVITY</p>
++        <h1 className={styles.title}>{copy[0]}</h1>
++        <p className={styles.message}>{state.message || copy[1]}</p>
++        {(state.stage === 'error' || state.stage === 'runtime_error') && (
++          <button className={styles.button} type="button" onClick={start}>
++            Tentar novamente
++          </button>
++        )}
++      </section>
++      <p className={styles.security}>Identidade e permissões são validadas pelo backend do Jarvis</p>
++    </main>
++  );
++};
+diff --git a/src/jarvis-compat/activity-api.mjs b/src/jarvis-compat/activity-api.mjs
+new file mode 100644
+index 0000000..d861635
+--- /dev/null
++++ b/src/jarvis-compat/activity-api.mjs
+@@ -0,0 +1,64 @@
++let activitySession = '';
++
++export class ActivityApiError extends Error {
++  constructor(code, status, message) {
++    super(message);
++    this.name = 'ActivityApiError';
++    this.code = code;
++    this.status = status;
++  }
++}
++
++const parse = async response => {
++  const payload = await response.json().catch(() => ({}));
++  if (!response.ok) {
++    throw new ActivityApiError(
++      String(payload.error || 'request_failed'),
++      response.status,
++      String(payload.message || 'Não foi possível falar com o Jarvis.'),
++    );
++  }
++  return payload;
++};
++
++const authorized = async path => {
++  if (!activitySession) {
++    throw new ActivityApiError('missing_session', 401, 'A sessão não foi iniciada.');
++  }
++  return parse(await fetch(path, {
++    method: 'GET',
++    headers: {
++      Authorization: `Bearer ${activitySession}`,
++    },
++    cache: 'no-store',
++  }));
++};
++
++export const clearActivitySession = () => {
++  activitySession = '';
++};
++
++export const activityApi = {
++  async health() {
++    return parse(await fetch('/api/activity/health', {cache: 'no-store'}));
++  },
++  async exchange(code) {
++    const exchange = await parse(await fetch('/api/activity/auth/exchange', {
++      method: 'POST',
++      headers: {'Content-Type': 'application/json'},
++      cache: 'no-store',
++      body: JSON.stringify({code}),
++    }));
++    activitySession = String(exchange.activity_session || '');
++    if (!activitySession) {
++      throw new ActivityApiError('missing_session', 502, 'O Jarvis não criou uma sessão válida.');
++    }
++    return exchange;
++  },
++  me() {
++    return authorized('/api/activity/me');
++  },
++  wallet() {
++    return authorized('/api/activity/wallet');
++  },
++};
+diff --git a/src/jarvis-compat/activity-discord.js b/src/jarvis-compat/activity-discord.js
+new file mode 100644
+index 0000000..cb3aa3b
+--- /dev/null
++++ b/src/jarvis-compat/activity-discord.js
+@@ -0,0 +1,34 @@
++import {DiscordSDK} from '@discord/embedded-app-sdk';
++
++let discordSdk;
++
++const getDiscordSdk = clientId => {
++  if (!discordSdk) discordSdk = new DiscordSDK(clientId);
++  return discordSdk;
++};
++
++export const authorizeDiscord = async clientId => {
++  const sdk = getDiscordSdk(clientId);
++  await sdk.ready();
++  const authorization = await sdk.commands.authorize({
++    client_id: clientId,
++    response_type: 'code',
++    state: '',
++    prompt: 'none',
++    scope: ['identify'],
++  });
++  if (!authorization.code) {
++    throw new Error('O Discord não retornou um código de autorização.');
++  }
++  return authorization.code;
++};
++
++export const authenticateDiscord = async (clientId, accessToken) => {
++  const sdk = getDiscordSdk(clientId);
++  await sdk.ready();
++  const authenticated = await sdk.commands.authenticate({access_token: accessToken});
++  if (!authenticated) {
++    throw new Error('O Discord não confirmou a autenticação da Activity.');
++  }
++};
++
+diff --git a/src/jarvis-compat/activity-shell.module.css b/src/jarvis-compat/activity-shell.module.css
+new file mode 100644
+index 0000000..9d143e6
+--- /dev/null
++++ b/src/jarvis-compat/activity-shell.module.css
+@@ -0,0 +1,112 @@
++.shell {
++  --jarvis-blue: #58a6ff;
++  --jarvis-cyan: #67e8f9;
++  position: fixed;
++  inset: 0;
++  z-index: 100000;
++  display: grid;
++  place-items: center;
++  overflow: hidden;
++  color: #f4f8ff;
++  background:
++    radial-gradient(circle at 20% 18%, rgb(33 105 180 / 26%), transparent 34rem),
++    radial-gradient(circle at 82% 78%, rgb(0 202 214 / 18%), transparent 30rem),
++    #070b14;
++  font-family: Inter, Muli, ui-sans-serif, system-ui, sans-serif;
++}
++
++.grid {
++  position: absolute;
++  inset: 0;
++  opacity: 0.13;
++  background-image:
++    linear-gradient(rgb(103 232 249 / 35%) 1px, transparent 1px),
++    linear-gradient(90deg, rgb(103 232 249 / 35%) 1px, transparent 1px);
++  background-size: 46px 46px;
++  mask-image: radial-gradient(circle, black 0%, transparent 72%);
++}
++
++.card {
++  position: relative;
++  width: min(34rem, calc(100vw - 2rem));
++  box-sizing: border-box;
++  padding: 2.25rem;
++  border: 1px solid rgb(103 232 249 / 28%);
++  border-radius: 1.25rem;
++  background: rgb(11 18 32 / 88%);
++  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
++  text-align: center;
++  backdrop-filter: blur(18px);
++}
++
++.mark {
++  display: grid;
++  width: 4rem;
++  height: 4rem;
++  margin: 0 auto 1.25rem;
++  place-items: center;
++  border: 1px solid rgb(103 232 249 / 48%);
++  border-radius: 50%;
++  color: var(--jarvis-cyan);
++  background: rgb(88 166 255 / 12%);
++  box-shadow: 0 0 2.5rem rgb(88 166 255 / 24%);
++  font-size: 1.55rem;
++  font-weight: 700;
++}
++
++.eyebrow {
++  margin: 0 0 0.6rem;
++  color: var(--jarvis-cyan);
++  font-size: 0.78rem;
++  font-weight: 700;
++  letter-spacing: 0.2em;
++}
++
++.title {
++  margin: 0;
++  font-size: clamp(1.7rem, 4vw, 2.35rem);
++  line-height: 1.1;
++}
++
++.message {
++  min-height: 3rem;
++  margin: 1rem 0 0;
++  color: #b9c7dc;
++  font-size: 1rem;
++  line-height: 1.55;
++}
++
++.button {
++  margin-top: 1.25rem;
++  padding: 0.8rem 1.15rem;
++  border: 1px solid rgb(103 232 249 / 55%);
++  border-radius: 0.7rem;
++  color: #07111d;
++  background: linear-gradient(135deg, var(--jarvis-cyan), var(--jarvis-blue));
++  font: inherit;
++  font-weight: 700;
++  cursor: pointer;
++}
++
++.button:focus-visible {
++  outline: 3px solid #fff;
++  outline-offset: 3px;
++}
++
++.security {
++  position: absolute;
++  right: 1rem;
++  bottom: 1rem;
++  left: 1rem;
++  margin: 0;
++  color: #7890aa;
++  font-size: 0.78rem;
++  text-align: center;
++}
++
++@media (max-width: 520px) {
++  .card {
++    padding: 1.6rem 1.25rem;
++  }
++}
++
+diff --git a/src/jarvis-compat/worlds-host.mjs b/src/jarvis-compat/worlds-host.mjs
+new file mode 100644
+index 0000000..e624a2e
+--- /dev/null
++++ b/src/jarvis-compat/worlds-host.mjs
+@@ -0,0 +1,8 @@
++export const resolveWorldsHost = locationLike => {
++  const {hostname, origin, port, protocol} = locationLike;
++  const isLoopback = hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1';
++  if (protocol === 'https:' && !isLoopback) return origin + '/worlds/';
++  const currentPort = port ? parseInt(port, 10) : (protocol === 'https:' ? 443 : 80);
++  return protocol + '//' + hostname + ':' + (currentPort + 1) + '/worlds/';
++};
++
+

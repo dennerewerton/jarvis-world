@@ -1,0 +1,57 @@
+diff --git a/index.mjs b/index.mjs
+index 674fb15..a1940d1 100644
+--- a/index.mjs
++++ b/index.mjs
+@@ -5,7 +5,8 @@ import path from 'path';
+ import fs from 'fs';
+ import express from 'express';
+ import vite from 'vite';
+ import wsrtc from 'wsrtc/wsrtc-server.mjs';
++import metaversefilePlugin from 'metaversefile/plugins/rollup.js';
+ 
+ const SERVER_ADDR = '0.0.0.0';
+ const SERVER_NAME = 'local.webaverse.com';
+@@ -129,16 +130,39 @@ function makeId(length) {
+   const _makeHttpServer = () => isHttps ? https.createServer(certs, app) : http.createServer(app);
+   const httpServer = _makeHttpServer();
+   const viteServer = await vite.createServer({
++    configFile: isProduction ? false : undefined,
++    plugins: isProduction ? [metaversefilePlugin()] : undefined,
+     server: {
+-      middlewareMode: 'html',
+-      force:true,
+-      hmr: {
++      middlewareMode: isProduction ? 'ssr' : 'html',
++      force: !isProduction,
++      hmr: isProduction ? false : {
+         server: httpServer,
+         port,
+         overlay: false,
+       },
+-    }
++    },
++    optimizeDeps: isProduction ? {
++      entries: [],
++      include: [
++        'react',
++        'react-dom',
++        '@discord/embedded-app-sdk',
++        'classnames',
++        'troika-three-text',
++        '@react-three/fiber',
++        'json-6',
++        '@shaderfrog/glsl-parser',
++        'maxrects-packer',
++        'smile2emoji',
++      ],
++    } : undefined,
+   });
++  if (isProduction) {
++    app.get('/', (req, res) => res.sendFile(path.join(cwd, 'index.html')));
++    app.get(/^\/(?:index|engine|preview|screenshot)\.html$/, (req, res) => {
++      res.sendFile(path.join(cwd, req.path));
++    });
++  }
+   app.use(viteServer.middlewares);
+   
+   await new Promise((accept, reject) => {

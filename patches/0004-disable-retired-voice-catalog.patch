@@ -1,0 +1,82 @@
+diff --git a/voices.js b/voices.js
+index 9789fef..ed2c138 100644
+--- a/voices.js
++++ b/voices.js
+@@ -1,68 +1,13 @@
+-import { voicePacksUrl, voiceEndpointsUrl, defaultVoiceEndpoint, defaultVoicePackName } from './constants.js';
+-import overrides from './overrides.js';
+-import {playersManager} from './players-manager.js';
+-import * as voices from './voices.js';
+-
+-const voicePacks = [];
+-const voiceEndpoints = [];
+-
+-const loadPromise = (async () => {
+-  await Promise.all([
+-    (async () => {
+-      const res = await fetch( voicePacksUrl );
+-      const j = await res.json();
+-      voicePacks.push(...j);
+-    })(),
+-    (async () => {
+-      const res = await fetch( voiceEndpointsUrl );
+-      const j = await res.json();
+-      voiceEndpoints.push(...j);
+-    })(),
+-  ]);
+-})();
+-
+-[
+-  'overrideVoicePack',
+-  'userVoicePack',
+-].forEach(key => {
+-  overrides[key].addEventListener('change', async e => {
+-    const voicePackName = overrides.overrideVoicePack.get() ?? overrides.userVoicePack.get() ?? defaultVoicePackName;
+-    const voicePack = voices.voicePacks.find(vp => vp.name === voicePackName);
+-
+-    const {
+-      audioPath,
+-      indexPath,
+-    } = voicePack;
+-    const voicePacksUrlBase = voicePacksUrl.replace(/\/+[^\/]+$/, '');
+-    const audioUrl = voicePacksUrlBase + audioPath;
+-    const indexUrl = voicePacksUrlBase + indexPath;
+-
+-    const localPlayer = playersManager.getLocalPlayer();
+-    await localPlayer.setVoicePack({
+-      audioUrl,
+-      indexUrl,
+-    });
+-  });
+-});
+-[
+-  'overrideVoiceEndpoint',
+-  'userVoiceEndpoint',
+-].forEach(key => {
+-  overrides[key].addEventListener('change', async e => {
+-    const voiceEndpointName = overrides.overrideVoiceEndpoint.get() ?? overrides.userVoiceEndpoint.get() ?? defaultVoiceEndpoint;
+-    const voiceEndpoint = voices.voiceEndpoints.find(ve => ve.name === voiceEndpointName);
+-
+-    const localPlayer = playersManager.getLocalPlayer();
+-    localPlayer.setVoiceEndpoint(voiceEndpoint.drive_id);
+-  });
+-});
+-
+-const waitForLoad = () => {
+-  return loadPromise;
+-};
++const voicePacks = [];
++const voiceEndpoints = [];
++
++// Jarvis World uses Discord for voice. The historical remote voice catalog is
++// no longer available and must not block scene loading or add a second voice
++// service to the Activity.
++const waitForLoad = async () => {};
+ 
+ export {
+   waitForLoad,
+   voicePacks,
+   voiceEndpoints,
+-}
+\ No newline at end of file
++}

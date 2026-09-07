@@ -1,0 +1,83 @@
+diff --git a/character-controller.js b/character-controller.js
+index c4b2db7..1b9a017 100644
+--- a/character-controller.js
++++ b/character-controller.js
+@@ -63,7 +63,18 @@ const localArray4 = [0, 0, 0, 0];
+ 
+ const zeroVector = new THREE.Vector3(0, 0, 0);
+ const upVector = new THREE.Vector3(0, 1, 0);
+ 
++const remotePresenceGeometry = new THREE.CapsuleGeometry(0.22, 0.92, 4, 8);
++const remotePresenceMaterial = new THREE.MeshBasicMaterial({color: 0x30d5ff});
++
++const _makeRemotePresenceMarker = () => {
++  const marker = new THREE.Group();
++  const body = new THREE.Mesh(remotePresenceGeometry, remotePresenceMaterial);
++  body.position.y = 0.68;
++  marker.add(body);
++  return marker;
++};
++
+ const _getSession = () => {
+   const renderer = getRenderer();
+   const session = renderer.xr.getSession();
+@@ -1278,6 +1288,10 @@ class RemotePlayer extends InterpolatedPlayer {
+     this.audioWorkerLoaded = false;
+     this.isRemotePlayer = true;
+     this.lastPosition = new THREE.Vector3();
++    this.presenceMarker = _makeRemotePresenceMarker();
++    this.presenceMarker.position.copy(this.position);
++    this.presenceMarker.quaternion.copy(this.quaternion);
++    scene.add(this.presenceMarker);
+   }
+     // The audio worker handles hups and incoming voices
+   // This includes the microphone from the owner of this instance
+@@ -1333,6 +1347,12 @@ class RemotePlayer extends InterpolatedPlayer {
+     } else {
+       throw new Error('binding to nonexistent player object', this.playersArray.toJSON());
+     }
++    const initialTransform = this.playerMap.get('transform');
++    if (initialTransform?.length >= 7) {
++      this.position.fromArray(initialTransform);
++      this.quaternion.fromArray(initialTransform, 3);
++    }
++
+     let lastTimestamp = performance.now();
+     let lastPosition = new THREE.Vector3();
+     const observePlayerFn = (e) => {
+@@ -1365,6 +1385,8 @@ class RemotePlayer extends InterpolatedPlayer {
+ 
+         this.position.fromArray(transform);
+         this.quaternion.fromArray(transform, 3);
++        this.presenceMarker.position.copy(this.position);
++        this.presenceMarker.quaternion.copy(this.quaternion);
+ 
+         this.positionInterpolant.snapshot(timeDiff);
+         this.quaternionInterpolant.snapshot(timeDiff);
+@@ -1406,6 +1428,12 @@ class RemotePlayer extends InterpolatedPlayer {
+     });
+   }
+   update(timestamp, timeDiff) {
++    if (this.presenceMarker) {
++      this.presenceMarker.position.copy(this.position);
++      this.presenceMarker.quaternion.copy(this.quaternion);
++      this.presenceMarker.visible = !this.avatar;
++    }
++
+     if(!this.avatar) return // console.log("no avatar"); // avatar takes time to load, ignore until it does
+ 
+     this.updateInterpolation(timeDiff);
+@@ -1420,6 +1448,13 @@ class RemotePlayer extends InterpolatedPlayer {
+ 
+     this.avatar.update(timestamp, timeDiff);
+   }
++  destroy() {
++    if (this.presenceMarker) {
++      this.presenceMarker.removeFromParent();
++      this.presenceMarker = null;
++    }
++    super.destroy();
++  }
+ }
+ /* class StaticUninterpolatedPlayer extends UninterpolatedPlayer {
+   constructor(opts) {

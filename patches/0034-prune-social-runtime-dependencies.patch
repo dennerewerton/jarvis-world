@@ -1,0 +1,20 @@
+diff --git a/webaverse.js b/webaverse.js
+--- a/webaverse.js
++++ b/webaverse.js
+@@ -38,8 +38,6 @@ import performanceTracker from './performance-tracker.js';
+ import renderSettingsManager from './rendersettings-manager.js';
+ import metaversefileApi from 'metaversefile';
+ // import domRenderEngine from './dom-renderer.jsx';
+-import musicManager from './music-manager.js';
+ import physxWorkerManager from './physx-worker-manager.js';
+-import zTargeting from './z-targeting.js';
+ import raycastManager from './raycast-manager.js';
+ import universe from './universe.js';
+@@ -79,7 +77,6 @@ export default class Webaverse extends EventTarget {
+         Avatar.waitForLoad(),
+         physxWorkerManager.waitForLoad(),
+         sounds.waitForLoad(),
+-        zTargeting.waitForLoad(),
+         particleSystemManager.waitForLoad(),
+         metaverseModules.waitForLoad(),
+         voices.waitForLoad(),

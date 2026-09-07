@@ -1,0 +1,418 @@
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+index cd69c58..b20d78a 100644
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -18,8 +18,7 @@ import { IoHandler, registerIoEventHandler, unregisterIoEventHandler } from '../general/io-handler';
+ import { ZoneTitleCard } from '../general/zone-title-card';
+ import { LoadingBox } from '../../LoadingBox.jsx';
+ import { PlayMode } from '../play-mode';
+-import SocialHeader from '../../SocialHeader.jsx';
+-import SocialHud from '../../SocialHud.jsx';
++import JarvisSocialDashboard from '../../JarvisSocialDashboard.jsx';
+ import QuickMenu from '../../QuickMenu.jsx';
+ import {DomRenderer} from '../../DomRenderer.jsx';
+ 
+@@ -267,9 +266,8 @@ export const App = () => {
+           >
+               <AppContext.Provider value={{ state, setState, app, setSelectedApp, selectedApp, uiMode }}>
+-                <SocialHeader />
+                 <DomRenderer />
+                 <Canvas app={app} />
+-                <SocialHud />
++                <JarvisSocialDashboard />
+                 <PlayMode />
+                 <IoHandler />
+                 <QuickMenu />
+diff --git a/src/jarvis-compat/activity-api.mjs b/src/jarvis-compat/activity-api.mjs
+index 6e82f8c..c416125 100644
+--- a/src/jarvis-compat/activity-api.mjs
++++ b/src/jarvis-compat/activity-api.mjs
+@@ -69,4 +69,7 @@ export const activityApi = {
+   shop() {
+     return authorized('/api/activity/shop');
+   },
++  daily() {
++    return authorized('/api/activity/daily');
++  },
+ };
+diff --git a/src/JarvisSocialDashboard.jsx b/src/JarvisSocialDashboard.jsx
+new file mode 100644
+index 0000000..27ba237
+--- /dev/null
++++ b/src/JarvisSocialDashboard.jsx
+@@ -0,0 +1,186 @@
++import React, {useContext, useEffect, useState} from 'react';
++
++import {AppContext} from './components/app';
++import {activityApi} from './jarvis-compat/activity-api.mjs';
++import {JarvisIdentityContext} from './jarvis-compat/ActivityShell.jsx';
++import styles from './JarvisSocialDashboard.module.css';
++
++const formatCoins = value => new Intl.NumberFormat('pt-BR').format(
++  Number.isFinite(Number(value)) ? Number(value) : 0,
++);
++
++const NAV_ITEMS = [
++  {id: 'map', icon: 'M', label: 'Mapa', key: 'M'},
++  {id: 'social', icon: 'S', label: 'Social', key: 'P'},
++  {id: 'daily', icon: 'D', label: 'Daily', key: 'D'},
++  {id: 'shop', icon: 'L', label: 'Loja', key: 'L'},
++  {id: 'guide', icon: '?', label: 'Guia', key: 'G'},
++];
++
++const MapPreview = () => (
++  <div className={styles.mapPreview} aria-label="Mapa simplificado de Jarvis City">
++    <span className={styles.roadHorizontal} />
++    <span className={styles.roadVertical} />
++    <i className={`${styles.poi} ${styles.plazaPoi}`}>P</i>
++    <i className={`${styles.poi} ${styles.towerPoi}`}>T</i>
++    <i className={`${styles.poi} ${styles.shopPoi}`}>L</i>
++    <i className={`${styles.poi} ${styles.parkPoi}`}>A</i>
++    <b>JARVIS PLAZA</b>
++  </div>
++);
++
++export default function JarvisSocialDashboard() {
++  const {state, setState} = useContext(AppContext);
++  const identity = useContext(JarvisIdentityContext);
++  const [panel, setPanel] = useState(null);
++  const [remote, setRemote] = useState({status: 'idle', data: null, error: ''});
++  const chatOpen = state.openedPanel === 'ChatPanel';
++  const displayName = identity?.profile?.display_name
++    || identity?.user?.display_name
++    || identity?.user?.username
++    || 'Jogador';
++  const username = identity?.user?.username || 'jarvis';
++  const avatarUrl = identity?.profile?.avatar_url || identity?.user?.avatar_url || '';
++  const initial = displayName.trim().slice(0, 1).toUpperCase() || 'J';
++
++  useEffect(() => {
++    const onKeyDown = event => {
++      if (event.key === 'Escape' && panel) setPanel(null);
++    };
++    window.addEventListener('keydown', onKeyDown);
++    return () => window.removeEventListener('keydown', onKeyDown);
++  }, [panel]);
++
++  const openChat = () => {
++    setPanel(null);
++    setState({openedPanel: chatOpen ? null : 'ChatPanel'});
++  };
++  const openEmotes = () => {
++    setPanel(null);
++    window.dispatchEvent(new Event('jarvis-open-emotes'));
++  };
++  const openPanel = async id => {
++    if (id === 'social') {
++      openChat();
++      return;
++    }
++    const nextPanel = panel === id ? null : id;
++    setPanel(nextPanel);
++    if (nextPanel !== 'daily' && nextPanel !== 'shop') return;
++    setRemote({status: 'loading', data: null, error: ''});
++    try {
++      const data = nextPanel === 'daily' ? await activityApi.daily() : await activityApi.shop();
++      setRemote({status: 'ready', data, error: ''});
++    } catch (error) {
++      setRemote({status: 'error', data: null, error: error?.message || 'Servico indisponivel.'});
++    }
++  };
++
++  const renderPanel = () => {
++    if (!panel) return null;
++    const titles = {
++      map: ['MAPA DA CIDADE', 'Jarvis City'],
++      daily: ['RECOMPENSA CANONICA', 'Daily Jarvis'],
++      shop: ['CATALOGO OFICIAL', 'Jarvis Shop'],
++      guide: ['COMO JOGAR', 'Guia social'],
++      settings: ['SESSAO', 'Configuracoes'],
++      events: ['AGENDA', 'Eventos Jarvis'],
++    };
++    const [eyebrow, title] = titles[panel] || ['JARVIS WORLD', 'Social'];
++    return (
++      <section className={styles.modal} aria-live="polite">
++        <button className={styles.close} type="button" onClick={() => setPanel(null)} aria-label="Fechar">x</button>
++        <small>{eyebrow}</small>
++        <h2>{title}</h2>
++        {panel === 'map' && <MapPreview />}
++        {panel === 'guide' && (
++          <div className={styles.guideGrid}>
++            <span><kbd>WASD</kbd> Mover</span><span><kbd>SHIFT</kbd> Correr</span>
++            <span><kbd>ESPACO</kbd> Pular</span><span><kbd>Q</kbd> Emotes</span>
++            <span><kbd>ENTER</kbd> Chat</span><span><kbd>MOUSE</kbd> Camera</span>
++          </div>
++        )}
++        {panel === 'settings' && <p>Identidade e permissoes sao protegidas pelo backend do Jarvis. Use o Discord para audio e preferencias da Activity.</p>}
++        {panel === 'events' && <p>O Event Center recebe temporadas, encontros e conteudos temporarios da comunidade.</p>}
++        {(panel === 'daily' || panel === 'shop') && remote.status === 'loading' && <p>Carregando dados seguros...</p>}
++        {(panel === 'daily' || panel === 'shop') && remote.status === 'error' && <p className={styles.error}>{remote.error}</p>}
++        {panel === 'daily' && remote.status === 'ready' && (
++          <div className={styles.remoteCard}>
++            <strong>{remote.data?.daily?.eligible ? 'Disponivel para resgate' : 'Daily ja coletado'}</strong>
++            <span>{remote.data?.daily?.eligible ? 'Use o terminal Daily na Jarvis Plaza.' : 'Volte no proximo periodo.'}</span>
++          </div>
++        )}
++        {panel === 'shop' && remote.status === 'ready' && (
++          <div className={styles.remoteCard}>
++            <strong>{remote.data?.shop?.total ?? remote.data?.shop?.items?.length ?? 0} itens no catalogo</strong>
++            <span>Compras continuam validadas pelo servidor Jarvis.</span>
++          </div>
++        )}
++      </section>
++    );
++  };
++
++  return (
++    <nav className={styles.hud} aria-label="HUD social Jarvis World">
++      <section className={styles.profile} aria-label="Perfil Jarvis">
++        <div className={styles.avatarRing}>
++          {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{initial}</span>}
++        </div>
++        <div className={styles.profileCopy}>
++          <strong>{displayName}</strong>
++          <span>@{username}</span>
++          <em><i /> JARVIS CITY - SOCIAL</em>
++        </div>
++        <span className={styles.jarvisBadge}>J</span>
++      </section>
++
++      <section className={styles.topBar} aria-label="Conta e atalhos">
++        <div className={styles.wallet}><span className={styles.coin}>J</span><strong>{formatCoins(identity?.wallet?.balance)}</strong><small>JC</small></div>
++        <button type="button" onClick={openChat} aria-label="Abrir social">S</button>
++        <button type="button" onClick={() => void openPanel('events')} aria-label="Abrir eventos">E</button>
++        <button type="button" onClick={() => void openPanel('settings')} aria-label="Abrir configuracoes">&#9881;</button>
++      </section>
++
++      <section className={styles.leftRail} aria-label="Navegacao principal">
++        {NAV_ITEMS.map(item => (
++          <button key={item.id} type="button" className={panel === item.id ? styles.active : ''} onClick={() => void openPanel(item.id)}>
++            <span>{item.icon}</span><strong>{item.label}</strong><kbd>{item.key}</kbd>
++          </button>
++        ))}
++      </section>
++
++      <section className={styles.socialAgenda}>
++        <header><span className={styles.targetIcon}>J</span><strong>ATIVIDADES SOCIAIS</strong></header>
++        <p><i className={styles.done} /> Explore a Jarvis Plaza <b>ATIVO</b></p>
++        <p><i /> Converse com outros jogadores <b>CHAT</b></p>
++        <p><i /> Descubra os distritos da cidade <b>MAPA</b></p>
++      </section>
++
++      <section className={styles.featureStack} aria-label="Destaques">
++        <button type="button" onClick={() => void openPanel('events')}><span>&#9733;</span><strong>EVENTOS<small>Temporadas e encontros</small></strong><b>&rsaquo;</b></button>
++        <button type="button" onClick={() => void openPanel('shop')}><span>J</span><strong>LOJA<small>Catalogo oficial Jarvis</small></strong><b>&rsaquo;</b></button>
++        <button type="button" onClick={() => void openPanel('map')}><span>M</span><strong>EXPLORAR<small>Landmarks e distritos</small></strong><b>&rsaquo;</b></button>
++      </section>
++
++      <section className={styles.brandPlate} aria-label="Jarvis World">
++        <span>J</span><strong>JARVIS WORLD</strong><small>JARVIS CITY</small><em>JOGUE - EXPLORE - FACA AMIGOS</em>
++      </section>
++
++      <section className={styles.socialDock}>
++        <button type="button" className={chatOpen ? styles.active : ''} onClick={openChat}><span>&#9679;</span><strong>Chat</strong><kbd>T</kbd></button>
++        <button type="button" onClick={openEmotes}><span>:)</span><strong>Emotes</strong><kbd>Q</kbd></button>
++        <button type="button" className={panel === 'guide' ? styles.active : ''} onClick={() => void openPanel('guide')}><span>M</span><strong>Guia</strong><kbd>G</kbd></button>
++      </section>
++
++      <button type="button" className={styles.chatPrompt} onClick={openChat}><span>&#9993;</span><em>Digite uma mensagem...</em><b>&rsaquo;</b></button>
++
++      <section className={styles.movement} aria-label="Controles de movimento">
++        <div><span className={styles.runGlyph}>&#10148;</span><strong>Correr</strong><kbd>SHIFT</kbd></div>
++        <div><span className={styles.jumpGlyph}>&uarr;</span><strong>Pular</strong><kbd>ESPACO</kbd></div>
++      </section>
++
++      <footer className={styles.status}><i /><span>ONLINE</span><b /> <span>Discord Activity</span><b /> <strong>Jarvis City - Social</strong></footer>
++      {renderPanel()}
++    </nav>
++  );
++}
+diff --git a/src/JarvisSocialDashboard.module.css b/src/JarvisSocialDashboard.module.css
+new file mode 100644
+index 0000000..fb921f7
+--- /dev/null
++++ b/src/JarvisSocialDashboard.module.css
+@@ -0,0 +1,183 @@
++.hud {
++  position: fixed;
++  inset: 0;
++  z-index: 1000;
++  color: #f7fdff;
++  font-family: Inter, Muli, system-ui, sans-serif;
++  pointer-events: none;
++  user-select: none;
++  text-shadow: 0 1px 2px rgba(0, 0, 0, .65);
++}
++
++.hud button { color: inherit; font: inherit; cursor: pointer; }
++.profile, .topBar, .leftRail button, .socialAgenda, .featureStack button, .brandPlate,
++.socialDock button, .chatPrompt, .movement div, .status, .modal { pointer-events: auto; }
++
++.profile {
++  position: fixed; top: 20px; left: 20px; display: flex; align-items: center; gap: 14px;
++  width: 390px; min-height: 92px; box-sizing: border-box; padding: 10px 48px 10px 82px;
++  border: 2px solid rgba(77, 224, 255, .88); border-radius: 22px 16px 38px 22px;
++  background: linear-gradient(125deg, rgba(8, 28, 65, .97), rgba(14, 78, 137, .91) 72%, rgba(20, 125, 178, .66));
++  box-shadow: 0 0 0 2px rgba(15, 105, 205, .28), 0 14px 32px rgba(0, 9, 29, .45), inset 0 0 24px rgba(77, 213, 255, .12);
++  clip-path: polygon(0 0, 100% 0, 94% 100%, 7% 100%, 0 74%);
++}
++
++.avatarRing {
++  position: absolute; left: -3px; width: 78px; height: 78px; display: grid; place-items: center;
++  overflow: hidden; border: 4px solid #80efff; border-radius: 50%;
++  background: radial-gradient(circle at 40% 30%, #816bff, #164a97 68%);
++  box-shadow: 0 0 0 5px rgba(139, 91, 255, .65), 0 0 20px rgba(71, 221, 255, .9);
++  font-size: 30px; font-weight: 1000;
++}
++.avatarRing img { width: 100%; height: 100%; object-fit: cover; }
++.profileCopy { display: grid; min-width: 0; gap: 1px; }
++.profileCopy strong { overflow: hidden; font-size: 23px; line-height: 1.05; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
++.profileCopy > span { color: #b9dcf7; font-size: 13px; }
++.profileCopy em { margin-top: 5px; color: #8deeff; font-size: 9px; font-style: normal; font-weight: 900; letter-spacing: .11em; }
++.profileCopy em i { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: #42ffa3; box-shadow: 0 0 8px #42ffa3; }
++.jarvisBadge { position: absolute; right: 22px; display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #8beeff; border-radius: 50%; color: #9af1ff; font-size: 17px; font-weight: 1000; }
++
++.topBar { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 9px; }
++.wallet { display: flex; align-items: center; min-width: 210px; height: 54px; padding: 0 15px; gap: 10px; box-sizing: border-box; border: 2px solid rgba(51, 236, 179, .8); border-radius: 22px; background: linear-gradient(145deg, rgba(8, 23, 42, .95), rgba(9, 79, 80, .88)); box-shadow: 0 9px 24px rgba(0,0,0,.38), inset 0 0 15px rgba(45, 255, 184, .12); }
++.coin { display: grid; place-items: center; width: 36px; height: 36px; border: 3px solid #fff07b; border-radius: 50%; color: #9e5500; background: linear-gradient(145deg, #fff36d, #ffab00); box-shadow: inset 0 0 0 3px #df7900, 0 0 11px rgba(255, 206, 40, .65); text-shadow: none; font-weight: 1000; }
++.wallet strong { margin-left: auto; font-size: 22px; }
++.wallet small { color: #8fffd3; font-weight: 900; }
++.topBar button { width: 52px; height: 52px; border: 1px solid rgba(78, 221, 255, .8); border-radius: 15px; background: linear-gradient(145deg, rgba(11, 48, 92, .97), rgba(7, 91, 136, .92)); box-shadow: 0 7px 18px rgba(0,0,0,.35), inset 0 0 15px rgba(76, 218, 255, .12); font-size: 18px; font-weight: 900; }
++.topBar button:hover, .topBar button:focus-visible { outline: 2px solid #93f4ff; transform: translateY(-2px); }
++
++.leftRail { position: fixed; top: 152px; left: 20px; display: grid; gap: 9px; }
++.leftRail button { position: relative; display: grid; place-items: center; width: 72px; min-height: 70px; padding: 7px 4px; border: 1px solid rgba(79, 221, 255, .75); border-radius: 17px; background: linear-gradient(145deg, rgba(7, 28, 57, .96), rgba(15, 74, 115, .92)); box-shadow: 0 7px 17px rgba(0,0,0,.38), inset 0 0 14px rgba(65, 216, 255, .1); }
++.leftRail button > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: #80edff; background: rgba(40, 191, 235, .16); font-size: 17px; font-weight: 1000; }
++.leftRail button strong { font-size: 11px; }
++.leftRail kbd { position: absolute; right: -9px; bottom: 7px; padding: 2px 5px; border: 1px solid rgba(255,255,255,.4); border-radius: 5px; background: #071a34; font-size: 8px; }
++.leftRail button:hover, .leftRail button:focus-visible, .leftRail button.active { outline: none; border-color: #b975ff; background: linear-gradient(145deg, rgba(24, 45, 91, .98), rgba(92, 38, 151, .94)); transform: translateX(3px); }
++
++.socialAgenda { position: fixed; top: 92px; right: 20px; width: 350px; padding: 13px 16px; box-sizing: border-box; border: 2px solid rgba(67, 221, 255, .82); border-radius: 18px; background: linear-gradient(145deg, rgba(6, 23, 51, .94), rgba(8, 63, 101, .87)); box-shadow: 0 10px 26px rgba(0,0,0,.42), inset 0 0 20px rgba(61, 218, 255, .1); }
++.socialAgenda header { display: flex; align-items: center; gap: 9px; padding-bottom: 9px; border-bottom: 1px solid rgba(104, 222, 255, .35); }
++.targetIcon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #07345d; background: #61eaff; text-shadow: none; font-weight: 1000; }
++.socialAgenda header strong { font-size: 14px; letter-spacing: .03em; }
++.socialAgenda p { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 8px; margin: 0; min-height: 39px; border-bottom: 1px solid rgba(100, 200, 235, .2); color: #e9f7ff; font-size: 12px; }
++.socialAgenda p:last-child { border: 0; }
++.socialAgenda p i { width: 14px; height: 14px; border: 1px solid #60dfff; border-radius: 4px; }
++.socialAgenda p i.done { background: linear-gradient(135deg, #35efa1, #59e7ff); box-shadow: 0 0 9px rgba(62, 242, 171, .55); }
++.socialAgenda p b { color: #76eaff; font-size: 9px; }
++
++.featureStack { position: fixed; top: 286px; right: 20px; display: grid; width: 350px; gap: 10px; }
++.featureStack button { display: grid; grid-template-columns: 42px 1fr 14px; align-items: center; min-height: 72px; padding: 9px 14px; gap: 10px; border: 1px solid rgba(96, 220, 255, .72); border-radius: 17px; background: linear-gradient(105deg, rgba(21, 39, 89, .96), rgba(64, 38, 123, .91)); box-shadow: 0 8px 22px rgba(0,0,0,.38), inset 0 0 16px rgba(109, 74, 255, .18); text-align: left; }
++.featureStack button:nth-child(2) { border-color: rgba(184, 102, 255, .85); background: linear-gradient(105deg, rgba(49, 23, 103, .96), rgba(120, 35, 136, .89)); }
++.featureStack button:nth-child(3) { border-color: rgba(84, 244, 187, .86); background: linear-gradient(105deg, rgba(8, 67, 81, .96), rgba(21, 118, 96, .89)); }
++.featureStack button > span { display: grid; place-items: center; height: 42px; border-radius: 12px; color: #ffe268; background: rgba(255,255,255,.08); font-size: 24px; font-weight: 1000; }
++.featureStack strong { display: grid; gap: 4px; font-size: 15px; }
++.featureStack small { color: #c2dced; font-size: 10px; font-weight: 600; }
++.featureStack button > b { font-size: 28px; }
++.featureStack button:hover, .featureStack button:focus-visible { outline: 2px solid #a1f5ff; transform: translateX(-3px); }
++
++.brandPlate { position: fixed; left: 28px; bottom: 115px; display: grid; width: 285px; box-sizing: border-box; padding: 13px 18px 14px 55px; border-top: 1px solid rgba(107, 227, 255, .75); background: linear-gradient(110deg, rgba(19, 82, 153, .88), rgba(37, 108, 182, .43), transparent); clip-path: polygon(0 0, 86% 0, 100% 50%, 86% 100%, 0 100%); }
++.brandPlate > span { position: absolute; left: 16px; top: 14px; color: #a4f4ff; font-size: 28px; font-weight: 1000; }
++.brandPlate strong { font-size: 20px; }
++.brandPlate small { color: #75eaff; font-size: 11px; font-weight: 800; letter-spacing: .09em; }
++.brandPlate em { margin-top: 3px; color: #b7dced; font-size: 8px; font-style: normal; letter-spacing: .06em; }
++
++.socialDock { position: fixed; left: 20px; bottom: 20px; display: flex; gap: 10px; }
++.socialDock button { position: relative; display: grid; place-items: center; min-width: 92px; min-height: 82px; padding: 7px 12px; border: 2px solid #42dcff; border-radius: 18px; background: linear-gradient(145deg, rgba(5, 33, 72, .96), rgba(10, 88, 131, .92)); box-shadow: 0 0 15px rgba(45, 206, 255, .28), inset 0 0 16px rgba(73, 218, 255, .14); }
++.socialDock button:nth-child(2) { border-color: #bb68ff; background: linear-gradient(145deg, rgba(43, 19, 91, .96), rgba(112, 38, 151, .92)); }
++.socialDock button:nth-child(3) { border-color: #51ecaa; background: linear-gradient(145deg, rgba(7, 63, 67, .96), rgba(18, 125, 93, .92)); }
++.socialDock button > span { color: #9cefff; font-size: 21px; font-weight: 1000; }
++.socialDock button strong { font-size: 13px; }
++.socialDock button kbd { position: absolute; right: 7px; bottom: 7px; color: #b9eeff; font-size: 8px; }
++.socialDock button:hover, .socialDock button:focus-visible, .socialDock button.active { outline: 2px solid white; transform: translateY(-3px); }
++
++.chatPrompt { position: fixed; left: 50%; bottom: 22px; display: grid; grid-template-columns: 24px 1fr 24px; align-items: center; width: min(480px, calc(100vw - 760px)); min-height: 54px; padding: 0 16px; transform: translateX(-50%); border: 2px solid rgba(71, 208, 255, .72); border-radius: 19px; background: rgba(6, 24, 51, .9); box-shadow: 0 9px 24px rgba(0,0,0,.4), inset 0 0 15px rgba(71, 210, 255, .09); text-align: left; }
++.chatPrompt span { color: #7ce8ff; font-size: 19px; }
++.chatPrompt em { color: #b6c9d9; font-size: 13px; font-style: normal; }
++.chatPrompt b { color: #dffaff; font-size: 24px; }
++
++.movement { position: fixed; right: 22px; bottom: 54px; display: flex; gap: 14px; }
++.movement div { display: grid; place-items: center; width: 86px; height: 86px; padding: 8px; box-sizing: border-box; border: 2px solid rgba(73, 217, 255, .75); border-radius: 50%; background: radial-gradient(circle at 35% 25%, rgba(31, 78, 129, .92), rgba(5, 20, 43, .96)); box-shadow: 0 8px 22px rgba(0,0,0,.42), inset 0 0 17px rgba(83, 212, 255, .14); }
++.movement span { font-size: 25px; line-height: 20px; }
++.movement strong { font-size: 11px; }
++.movement kbd { padding: 2px 5px; border-radius: 4px; background: #08192e; color: #dffaff; font-size: 8px; }
++.runGlyph { transform: rotate(-18deg); }
++.jumpGlyph { font-size: 34px !important; }
++
++.status { position: fixed; right: 20px; bottom: 14px; display: flex; align-items: center; gap: 8px; color: #d8ebf7; font-size: 10px; }
++.status > i { width: 10px; height: 10px; border-radius: 50%; background: #3aff92; box-shadow: 0 0 9px #3aff92; }
++.status > b { width: 1px; height: 13px; background: rgba(205, 237, 250, .38); }
++.status > span:first-of-type { color: #6bffad; font-weight: 900; }
++
++.modal { position: fixed; left: 50%; top: 50%; width: min(520px, calc(100vw - 40px)); min-height: 250px; box-sizing: border-box; padding: 25px; transform: translate(-50%, -50%); border: 2px solid rgba(80, 225, 255, .88); border-radius: 24px; background: linear-gradient(145deg, rgba(5, 20, 45, .98), rgba(10, 55, 91, .97)); box-shadow: 0 22px 70px rgba(0,0,0,.66), inset 0 0 26px rgba(70, 215, 255, .1); }
++.modal::before { position: fixed; inset: -100vh -100vw; z-index: -1; background: rgba(1, 8, 20, .38); content: ''; backdrop-filter: blur(2px); }
++.modal > small { color: #68e8ff; font-size: 9px; font-weight: 900; letter-spacing: .17em; }
++.modal h2 { margin: 5px 0 18px; font-size: 27px; }
++.modal p { color: #b7d2e3; line-height: 1.6; }
++.close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border: 1px solid rgba(113, 226, 255, .5); border-radius: 10px; background: rgba(23, 80, 117, .6); }
++.close:hover, .close:focus-visible { outline: 2px solid #8cf0ff; }
++.guideGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
++.guideGrid span { display: flex; align-items: center; gap: 9px; padding: 10px; border: 1px solid rgba(89, 210, 245, .2); border-radius: 10px; background: rgba(30, 102, 137, .12); font-size: 12px; }
++.guideGrid kbd { min-width: 58px; color: #86edff; font-size: 9px; }
++.remoteCard { display: grid; gap: 9px; padding: 18px; border: 1px solid rgba(86, 227, 255, .35); border-radius: 15px; background: rgba(34, 113, 145, .15); }
++.remoteCard strong { color: #9ff4ff; font-size: 18px; }
++.remoteCard span { color: #c0d9e8; font-size: 12px; }
++.error { color: #ffadb6 !important; }
++.mapPreview { position: relative; height: 190px; overflow: hidden; border: 1px solid rgba(83, 225, 255, .4); border-radius: 16px; background: radial-gradient(circle at center, rgba(27, 189, 200, .32), transparent 42%), linear-gradient(135deg, #0d446d, #082942); }
++.roadHorizontal, .roadVertical { position: absolute; background: rgba(184, 232, 238, .33); }
++.roadHorizontal { left: 0; top: 86px; width: 100%; height: 18px; }
++.roadVertical { top: 0; left: calc(50% - 9px); width: 18px; height: 100%; }
++.poi { position: absolute; display: grid; place-items: center; width: 25px; height: 25px; border: 2px solid #dffcff; border-radius: 50%; background: #11a6cf; font-style: normal; font-size: 10px; box-shadow: 0 0 11px #44e9ff; }
++.plazaPoi { left: calc(50% - 14px); top: 82px; }.towerPoi { left: 52%; top: 22px; }.shopPoi { right: 18%; top: 103px; }.parkPoi { left: 18%; bottom: 22px; }
++.mapPreview b { position: absolute; left: calc(50% + 18px); top: 107px; color: #aaf5ff; font-size: 8px; }
++
++@media (max-width: 1180px) {
++  .profile { width: 320px; }
++  .socialAgenda { width: 300px; }
++  .featureStack { width: 300px; }
++  .chatPrompt { width: 330px; }
++  .brandPlate { display: none; }
++}
++
++@media (max-width: 900px) {
++  .profile { top: 12px; left: 12px; width: 270px; min-height: 70px; padding-left: 65px; }
++  .avatarRing { width: 58px; height: 58px; }
++  .profileCopy strong { font-size: 16px; }
++  .profileCopy em, .jarvisBadge { display: none; }
++  .topBar { top: 12px; right: 12px; }
++  .wallet { min-width: 135px; height: 46px; }
++  .coin { width: 28px; height: 28px; }
++  .wallet strong { font-size: 15px; }
++  .topBar button { width: 44px; height: 44px; }
++  .socialAgenda, .featureStack { width: 240px; right: 12px; }
++  .socialAgenda { top: 76px; padding: 9px 11px; }
++  .socialAgenda p { min-height: 32px; font-size: 10px; }
++  .featureStack { top: 232px; gap: 7px; }
++  .featureStack button { min-height: 56px; padding: 6px 10px; grid-template-columns: 34px 1fr 10px; }
++  .featureStack button > span { height: 34px; font-size: 18px; }
++  .featureStack strong { font-size: 12px; }
++  .leftRail { top: 100px; left: 12px; }
++  .leftRail button { width: 58px; min-height: 54px; border-radius: 13px; }
++  .leftRail button > span { width: 23px; height: 23px; font-size: 12px; }
++  .leftRail button strong { font-size: 9px; }
++  .socialDock { left: 12px; bottom: 12px; }
++  .socialDock button { min-width: 70px; min-height: 60px; border-radius: 14px; }
++  .chatPrompt { left: auto; right: 12px; bottom: 16px; width: 300px; transform: none; }
++  .movement, .status { display: none; }
++}
++
++@media (max-width: 620px) {
++  .socialAgenda, .featureStack { display: none; }
++  .profile { width: 210px; }
++  .profileCopy > span { display: none; }
++  .wallet { min-width: 105px; }
++  .wallet small, .topBar button:nth-last-child(2) { display: none; }
++  .topBar button { width: 40px; }
++  .leftRail { top: auto; right: 12px; bottom: 82px; grid-template-columns: repeat(5, 1fr); }
++  .leftRail button { width: 52px; min-height: 48px; }
++  .leftRail button strong, .leftRail kbd { display: none; }
++  .socialDock button { min-width: 58px; min-height: 52px; padding: 5px; }
++  .socialDock button strong { font-size: 10px; }
++  .chatPrompt { display: none; }
++  .guideGrid { grid-template-columns: 1fr; }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .hud button { transition: none !important; }
++}

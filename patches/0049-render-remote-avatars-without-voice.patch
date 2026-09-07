@@ -1,0 +1,24 @@
+diff --git a/character-controller.js b/character-controller.js
+index 7b4a9c9..c4b2db7 100644
+--- a/character-controller.js
++++ b/character-controller.js
+@@ -1388,8 +1388,17 @@ class RemotePlayer extends InterpolatedPlayer {
+     this.appManager.bindState(this.getAppsState());
+     this.appManager.loadApps().then(() => {
+       if(!this.voicer || !this.voiceEndpoint){
+-        let voiceSpec = JSON.parse(this.playerMap.get('voiceSpec'));
+-        this.loadVoiceEndpoint(voiceSpec.endpointUrl);
++        const rawVoiceSpec = this.playerMap.get('voiceSpec');
++        if (typeof rawVoiceSpec === 'string' && rawVoiceSpec) {
++          try {
++            const voiceSpec = JSON.parse(rawVoiceSpec);
++            if (voiceSpec?.endpointUrl) {
++              this.loadVoiceEndpoint(voiceSpec.endpointUrl);
++            }
++          } catch {
++            // Voice is optional for a remote player and cannot hide its avatar.
++          }
++        }
+       }
+       this.syncAvatar();
+     });

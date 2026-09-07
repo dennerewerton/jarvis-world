@@ -1,0 +1,211 @@
+diff --git a/src/jarvis-compat/pt-BR.js b/src/jarvis-compat/pt-BR.js
+new file mode 100644
+index 0000000..f06b8ee
+--- /dev/null
++++ b/src/jarvis-compat/pt-BR.js
+@@ -0,0 +1,165 @@
++const exactTranslations = new Map([
++  ['World', 'Mundo'],
++  ['Settings', 'Configurações'],
++  ['Mode', 'Modo'],
++  ['Hide', 'Ocultar'],
++  ['VR (no)', 'RV (indisponível)'],
++  ['Log in', 'Entrar'],
++  ['Logging in', 'Entrando'],
++  ['Logout', 'Sair'],
++  ['Cancel', 'Cancelar'],
++  ['Close', 'Fechar'],
++  ['Loading', 'Carregando'],
++  ['GENERAL', 'GERAL'],
++  ['CONTROLS', 'CONTROLES'],
++  ['AUDIO', 'ÁUDIO'],
++  ['GRAPHICS', 'GRÁFICOS'],
++  ['Account', 'Conta'],
++  ['Inventory', 'Inventário'],
++  ['Character select', 'Selecionar personagem'],
++  ['Tokens', 'Tokens'],
++  ['From Upstreet', 'Da Upstreet'],
++  ['Land', 'Terreno'],
++  ['Season', 'Temporada'],
++  ['Public', 'Público'],
++  ['Claims', 'Itens recebidos'],
++  ['Equip', 'Equipar'],
++  ['None', 'Nenhum'],
++  ['Display', 'Exibição'],
++  ['Resolution', 'Resolução'],
++  ['Antialias', 'Suavização de serrilhado'],
++  ['View range', 'Distância de visão'],
++  ['Shadows quality', 'Qualidade das sombras'],
++  ['Postprocessing', 'Pós-processamento'],
++  ['Enabled', 'Ativado'],
++  ['Depth of field', 'Profundidade de campo'],
++  ['Character', 'Personagem'],
++  ['Character details', 'Detalhes do personagem'],
++  ['Hair physics', 'Física do cabelo'],
++  ['Move forward', 'Mover para frente'],
++  ['Move left', 'Mover para a esquerda'],
++  ['Move right', 'Mover para a direita'],
++  ['Move back', 'Mover para trás'],
++  ['Jump', 'Pular'],
++  ['Run', 'Correr'],
++  ['Naruto run', 'Corrida ninja'],
++  ['Action', 'Ação'],
++  ['Chat', 'Chat'],
++  ['General volume', 'Volume geral'],
++  ['Music volume', 'Volume da música'],
++  ['Voice volume', 'Volume de voz'],
++  ['Effects volume', 'Volume dos efeitos'],
++  ['Voice pack', 'Pacote de voz'],
++  ['Voice endpoint', 'Servidor de voz'],
++  ['MODEL', 'MODELO'],
++  ['Provider', 'Provedor'],
++  ['Test', 'Teste'],
++  ['Submit', 'Enviar'],
++  ['Working...', 'Processando...'],
++  ['APPLY', 'APLICAR'],
++  ['APPLYING', 'APLICANDO'],
++  ['Zone Title', 'JARVIS WORLD'],
++  ['Zone Description', 'Praça de teste local'],
++  ['This is a zone comment.', 'Carregando o mundo local do Jarvis.'],
++  ['Position', 'Posição'],
++  ['Rotation', 'Rotação'],
++  ['Rotation type', 'Tipo de rotação'],
++  ['Euler order', 'Ordem de Euler'],
++  ['Scale', 'Escala'],
++  ['Limit', 'Limite'],
++  ['Tab', 'TAB'],
++  ['HP', 'VIDA'],
++  ['MP', 'MANA'],
++  ['XP', 'EXP'],
++  ['Wave', 'Acenar'],
++  ['Cheer', 'Comemorar'],
++  ['Dance', 'Dançar'],
++  ['Sit', 'Sentar'],
++  ['Point', 'Apontar'],
++]);
++
++const patternedTranslations = [
++  [/^世\\s+World$/, 'Mundo'],
++  [/^設定\\s+Settings$/, 'Configurações'],
++  [/^モード\\s+Mode$/, 'Modo'],
++  [/^隠れる\\s+Hide$/, 'Ocultar'],
++  [/^仮想現実\\s+VR\\s*\\(no\\)$/, 'RV (indisponível)'],
++  [/^仮想現実\\s+VR$/, 'RV'],
++  [/^ログイン\\s+Log in$/, 'Entrar'],
++  [/^品\\s+Claims\\s*\\((\\d+)\\)$/, 'Itens recebidos ($1)'],
++  [/^World Tokens\\s*\\((\\d+)\\)$/, 'Objetos do mundo ($1)'],
++  [/^Lv\\.\\s*(\\d+)$/, 'Nv. $1'],
++  [/^Dev Alpha(?: Season)?\\s*(.*)$/, 'Temporada Alfa de Desenvolvimento $1'],
++  [/^API Key(?: \\(set\\))?$/, 'Chave de API'],
++  [/^LMB USE Q LORE R DROP$/, 'BOTÃO ESQ.: USAR · Q: EMOTES · R: SOLTAR'],
++];
++
++export const translatePtBr = value => {
++  if (typeof value !== 'string') return value;
++  const match = value.match(/^(\\s*)(.*?)(\\s*)$/s);
++  const prefix = match[1];
++  const core = match[2];
++  const suffix = match[3];
++  let translated = exactTranslations.get(core);
++  if (translated === undefined) {
++    for (const [pattern, replacement] of patternedTranslations) {
++      if (pattern.test(core)) {
++        translated = core.replace(pattern, replacement);
++        break;
++      }
++    }
++  }
++  return translated === undefined ? value : prefix + translated + suffix;
++};
++
++const shouldSkipText = node => {
++  const parent = node.parentElement;
++  return !parent || parent.closest('script, style, textarea, input, select, option, [contenteditable="true"]');
++};
++
++const localizeElement = element => {
++  for (const node of element.childNodes) {
++    if (node.nodeType === Node.TEXT_NODE && !shouldSkipText(node)) {
++      const translated = translatePtBr(node.nodeValue);
++      if (translated !== node.nodeValue) node.nodeValue = translated;
++    }
++  }
++  if (element.matches?.('input[type="button"], input[type="submit"]')) {
++    const translated = translatePtBr(element.value);
++    if (translated !== element.value) element.value = translated;
++  }
++  for (const attribute of ['placeholder', 'title', 'aria-label']) {
++    if (element.hasAttribute?.(attribute)) {
++      const translated = translatePtBr(element.getAttribute(attribute));
++      if (translated !== element.getAttribute(attribute)) element.setAttribute(attribute, translated);
++    }
++  }
++};
++
++export const installPtBrLocalization = () => {
++  if (window.__jarvisPtBrLocalizationInstalled) return;
++  window.__jarvisPtBrLocalizationInstalled = true;
++  const localizeRoot = root => {
++    if (root.nodeType === Node.ELEMENT_NODE) {
++      localizeElement(root);
++      root.querySelectorAll?.('*').forEach(localizeElement);
++    }
++  };
++  const start = () => {
++    localizeRoot(document.documentElement);
++    new MutationObserver(records => {
++      for (const record of records) {
++        if (record.type === 'characterData') {
++          if (!shouldSkipText(record.target)) {
++            const translated = translatePtBr(record.target.nodeValue);
++            if (translated !== record.target.nodeValue) record.target.nodeValue = translated;
++          }
++        } else {
++          record.addedNodes.forEach(localizeRoot);
++        }
++      }
++    }).observe(document.documentElement, {childList: true, subtree: true, characterData: true});
++  };
++  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
++  else start();
++};
+diff --git a/src/main.jsx b/src/main.jsx
+index 5809656..b870713 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -3,13 +3,16 @@ import ReactDOM from 'react-dom';
+ 
+ import { App } from './components/app';
+ import { ErrorPage } from './components/general/error-page';
++import {installPtBrLocalization} from './jarvis-compat/pt-BR.js';
+ 
+ //
+ 
+ const WebWorkerSupport = !navigator.userAgent.match(/(Firefox|MSIE)/);
+ 
++installPtBrLocalization();
++
+ ReactDOM.render(
+   <React.StrictMode>
+     {
+         WebWorkerSupport ? (
+             <App />
+diff --git a/src/QuickMenu.jsx b/src/QuickMenu.jsx
+index 7a59601..fcb630d 100644
+--- a/src/QuickMenu.jsx
++++ b/src/QuickMenu.jsx
+@@ -9,5 +9,6 @@ import {triggerEmote} from './components/general/character/Poses';
+ 
+ import game from '../game.js';
+ import cameraManager from '../camera-manager.js';
++import {translatePtBr} from './jarvis-compat/pt-BR.js';
+ import * as sounds from '../sounds.js';
+ import {mod, loadImage, drawImageContain, imageToCanvas} from '../util.js';
+@@ -184,6 +185,6 @@ export default function QuickMenu() {
+           ctx.fillStyle = '#FFF';
+           ctx.fillText(
+-            emotes[i].name,
++            translatePtBr(emotes[i].name),
+             pixelSize/2 + Math.cos(midAngle)*radiusCenter,
+             pixelSize/2 + Math.sin(midAngle)*radiusCenter + pixelSize/20
+           );

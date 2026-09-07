@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Webaverse standalone baseline scene only",
+  "distribution": "vendored copies in webaverse/scene-assets",
+  "packages": [
+    {
+      "name": "street-base",
+      "repository": "https://github.com/webaverse/street-base.git",
+      "commit": "61bb4dd9bfe7daad76e9b1ec529f49c3258dd29b",
+      "runtimePath": "metaverse_modules/street-base",
+      "sourcePath": "scene-assets/street-base",
+      "license": "NO_LICENSE_FILE",
+      "notice": "No LICENSE or NOTICE file was present in the audited checkout."
+    },
+    {
+      "name": "street",
+      "repository": "https://github.com/webaverse/street.git",
+      "commit": "6d533f4956eaac0f50922be5cb73605e63d3ff8f",
+      "runtimePath": "metaverse_modules/street",
+      "sourcePath": "scene-assets/street",
+      "license": "NO_LICENSE_FILE",
+      "notice": "No LICENSE or NOTICE file was present in the audited checkout."
+    },
+    {
+      "name": "skybox",
+      "repository": "https://github.com/webaverse/skybox.git",
+      "commit": "0ca1a878300abf3e85e548b28bbbdac5e7a24fba",
+      "runtimePath": "metaverse_modules/skybox",
+      "sourcePath": "scene-assets/skybox",
+      "license": "NO_LICENSE_FILE",
+      "notice": "No LICENSE or NOTICE file was present in the audited checkout."
+    }
+  ]
+}

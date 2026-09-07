@@ -1,0 +1,86 @@
+diff --git a/metaverse_modules/jarvis-cartoon-city-world/index.js b/metaverse_modules/jarvis-cartoon-city-world/index.js
+index ab4f2b9..d44ca36 100644
+--- a/metaverse_modules/jarvis-cartoon-city-world/index.js
++++ b/metaverse_modules/jarvis-cartoon-city-world/index.js
+@@ -6,6 +6,8 @@ const CITY_ROOT = '/assets/jarvis-world/3d/cartoon-city-free-v1';
+ const DEFAULT_QUALITY = 'auto';
+ const QUALITY_LOAD_DISTANCE = {low: 32, medium: 44, high: 64, auto: 48};
+ const STREAM_UPDATE_INTERVAL = 250;
++const SAFE_SPAWN_POSITION = new THREE.Vector3(7.5, 2.1, 22.5);
++const SAFE_SPAWN_QUATERNION = new THREE.Quaternion(0, 0, 0, 1);
+ 
+ // These rectangles follow the reproducible splitter, not a hand-built city grid.
+ const SECTORS = [
+@@ -208,8 +210,15 @@ export default e => {
+     'north-central-east',
+     'south-central-center',
+   ]);
+-  e.waitUntil(Promise.all(
+-    SECTORS.filter(sector => initialSectorIds.has(sector.id)).map(loadSector),
+-  ));
++  e.waitUntil(
++    Promise.all(SECTORS.filter(sector => initialSectorIds.has(sector.id)).map(loadSector))
++      .then(() => {
++        // Scene spawnpoints are asynchronous upstream. Reassert a road-side Plaza
++        // spawn only after the first city sectors and their static colliders exist.
++        if (!disposed && typeof localPlayer?.setSpawnPoint === 'function') {
++          localPlayer.setSpawnPoint(SAFE_SPAWN_POSITION, SAFE_SPAWN_QUATERNION);
++        }
++      }),
++  );
+ 
+   useFrame(({timestamp = performance.now()} = {}) => {
+diff --git a/scenes/jarvis-cartoon-city.scn b/scenes/jarvis-cartoon-city.scn
+index 3d2cb0c..4a910ea 100644
+--- a/scenes/jarvis-cartoon-city.scn
++++ b/scenes/jarvis-cartoon-city.scn
+@@ -15,6 +15,6 @@
+     {
+       "type": "application/spawnpoint",
+       "content": {
+-        "position": [-12.56, 2, 22],
++        "position": [7.5, 2.1, 22.5],
+         "quaternion": [0, 0, 0, 1]
+       }
+     },
+diff --git a/src/SocialHud.jsx b/src/SocialHud.jsx
+index 8f9fb25..a7f194c 100644
+--- a/src/SocialHud.jsx
++++ b/src/SocialHud.jsx
+@@ -34,4 +34,8 @@ export default function SocialHud() {
+         </div>
+         <div className={styles.separator} />
+ 
++        <div className={styles.modeStrip} aria-label="Modo atual">
++          <span>EXPLORAR</span><b>/</b><span>SOCIAL</span><b>/</b><span>PARKOUR</span>
++        </div>
++
+       {showControls ? (
+diff --git a/src/SocialHud.module.css b/src/SocialHud.module.css
+index 9f74d5f..87c19c2 100644
+--- a/src/SocialHud.module.css
++++ b/src/SocialHud.module.css
+@@ -151,6 +151,23 @@
+   background: linear-gradient(90deg, transparent, rgba(118, 228, 251, 0.38), transparent);
+ }
+ 
++.modeStrip {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 6px;
++  min-height: 24px;
++  color: rgba(180, 236, 247, 0.82);
++  font-size: 8px;
++  font-weight: 800;
++  letter-spacing: 0.11em;
++}
++
++.modeStrip b {
++  color: #5fe7ff;
++  font-size: 9px;
++}
++
+ .actions {
+   display: grid;
+   grid-template-columns: repeat(3, minmax(0, 1fr));

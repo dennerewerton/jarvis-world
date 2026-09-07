@@ -1,0 +1,48 @@
+diff --git a/index.mjs b/index.mjs
+--- a/index.mjs
++++ b/index.mjs
+@@ -65,4 +65,4 @@
+     res.setHeader(
+       'Content-Security-Policy',
+-      "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://cdn.discordapp.com data: blob:; media-src 'self' data: blob:; connect-src 'self' https://discord.com https://*.discord.com blob:; worker-src 'self' blob:; frame-ancestors https://discord.com https://*.discord.com",
++      "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://cdn.discordapp.com data: blob:; media-src 'self' data: blob:; connect-src 'self' https://discord.com https://*.discord.com blob:; worker-src 'self' blob:; frame-ancestors https://discord.com https://*.discord.com",
+     );
+diff --git a/metaversefile-api.js b/metaversefile-api.js
+--- a/metaversefile-api.js
++++ b/metaversefile-api.js
+@@ -17,8 +17,7 @@ import physicsManager from './physics-manager.js';
+ import Avatar from './avatars/avatars.js';
+ import {world} from './world.js';
+ import ERC721 from './erc721-abi.json';
+ import ERC1155 from './erc1155-abi.json';
+-import {web3} from './blockchain.js';
+ import {moduleUrls, modules} from './metaverse-modules.js';
+ import {componentTemplates} from './metaverse-components.js';
+ import postProcessing from './post-processing.js';
+@@ -767,7 +766,7 @@ const api = {
+     return defaultModules;
+   },
+   useWeb3() {
+-    return web3.mainnet;
++    return null;
+   },
+   useAbis() {
+     return abis;
+diff --git a/webaverse.js b/webaverse.js
+--- a/webaverse.js
++++ b/webaverse.js
+@@ -10,6 +10,5 @@ import ioManager from './io-manager.js';
+ import physicsManager from './physics-manager.js';
+ import {world} from './world.js';
+-import * as blockchain from './blockchain.js';
+ import cameraManager from './camera-manager.js';
+ import game from './game.js';
+ import hpManager from './hp-manager.js';
+@@ -123,7 +122,6 @@ export default class Webaverse extends EventTarget {
+   }
+   bindInterface() {
+     ioManager.bindInterface();
+-    blockchain.bindInterface();
+   }
+   bindCanvas(c) {
+     bindCanvas(c);

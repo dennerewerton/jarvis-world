@@ -1,0 +1,13 @@
+diff --git a/type_templates/html.js b/type_templates/html.js
+index 9459046..ee4112b 100644
+--- a/type_templates/html.js
++++ b/type_templates/html.js
+@@ -100,7 +100,7 @@ export default e => {
+ 
+   function epsilon(value) {
+     return value;
+-    // return Math.abs(value) < 1e-10 ? 0 : value;
++    // Legacy near-zero normalization remains intentionally disabled.
+   }
+   function getObjectCSSMatrix( matrix, cameraCSSMatrix ) {
+     var elements = matrix.elements;

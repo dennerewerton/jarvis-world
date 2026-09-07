@@ -1,0 +1,97 @@
+diff --git a/particle-system.js b/particle-system.js
+--- a/particle-system.js
++++ b/particle-system.js
+@@ -4,15 +4,11 @@ import {WebaverseShaderMaterial} from './materials.js';
+ // import {world} from './world.js';
+ import loaders from './loaders.js';
+ 
+-// const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
+-const urlPrefix = `https://webaverse.github.io/fx-textures/`;
+-const particlesJsonUrl = `${urlPrefix}fx-files.json`;
+-
+-let particlesJson = null;
+-const loadPromise = (async () => {
+-  const res = await fetch(particlesJsonUrl);
+-  particlesJson = await res.json();
+-})();
++// Jarvis World keeps executable/runtime assets on its own origin. The retired
++// remote particle catalog is optional and the baseline scene does not use it.
++const urlPrefix = '';
++const particlesJson = [];
++const loadPromise = Promise.resolve();
+ const waitForLoad = () => loadPromise;
+ 
+ const _loadParticleTextureByName = async name => {
+@@ -20,5 +16,8 @@ const _loadParticleTextureByName = async name => {
+ 
+   const fileSpec = particlesJson.find(f => f.name === name);
++  if (!fileSpec) {
++    throw new Error(`particle texture is unavailable: ${name}`);
++  }
+   const {numFrames} = fileSpec;
+ 
+   const texture = await new Promise((accept, reject) => {
+diff --git a/jarvis-particle-system.js b/jarvis-particle-system.js
+new file mode 100644
+--- /dev/null
++++ b/jarvis-particle-system.js
+@@ -0,0 +1,14 @@
++const unsupported = () => {
++  throw new Error('particle systems are unavailable in the Jarvis World pilot');
++};
++
++const particleSystemManager = {
++  createParticleSystem: unsupported,
++  destroyParticleSystem() {},
++  waitForLoad() {
++    return Promise.resolve();
++  },
++  update() {},
++};
++
++export default particleSystemManager;
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -8,4 +8,4 @@
+ import sceneNames from '../../../scenes/scenes.json';
+ import { parseQuery } from '../../../util.js'
+-import Webaverse from '../../../webaverse.js';
++import Webaverse from '../../../webaverse.js?jarvis-fw4=18';
+ import universe from '../../../universe.js';
+diff --git a/metaversefile-api.js b/metaversefile-api.js
+--- a/metaversefile-api.js
++++ b/metaversefile-api.js
+@@ -50,3 +50,3 @@
+ import hpManager from './hp-manager.js';
+-import particleSystemManager from './particle-system.js';
++import particleSystemManager from './jarvis-particle-system.js';
+ import domRenderEngine from './dom-renderer.jsx';
+diff --git a/webaverse.js b/webaverse.js
+--- a/webaverse.js
++++ b/webaverse.js
+@@ -13,3 +13,3 @@
+ import postProcessing from './post-processing.js';
+-import particleSystemManager from './particle-system.js';
++import particleSystemManager from './jarvis-particle-system.js';
+ import loadoutManager from './loadout-manager.js';
+diff --git a/src/components/play-mode/infobox/Infobox.jsx b/src/components/play-mode/infobox/Infobox.jsx
+--- a/src/components/play-mode/infobox/Infobox.jsx
++++ b/src/components/play-mode/infobox/Infobox.jsx
+@@ -30,7 +30,7 @@ export const Infobox = () => {
+             infoboxRenderer.addCanvas(canvas);
+ 
+             return () => {
+-                infoBoxRenderer.removeCanvas(canvas);
++                infoboxRenderer.removeCanvas(canvas);
+             };
+         }
+     }, [canvasRef]);
+diff --git a/src/components/play-mode/infobox/index.jsx b/src/components/play-mode/infobox/index.jsx
+--- a/src/components/play-mode/infobox/index.jsx
++++ b/src/components/play-mode/infobox/index.jsx
+@@ -1,3 +1,3 @@
+ 
+-import { Infobox } from './Infobox';
++import { Infobox } from './Infobox.jsx?jarvis-fw4=1';
+ export { Infobox };

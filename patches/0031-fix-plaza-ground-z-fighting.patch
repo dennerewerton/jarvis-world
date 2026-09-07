@@ -1,0 +1,14 @@
+diff --git a/metaverse_modules/jarvis-cartoon-city-world/index.js b/metaverse_modules/jarvis-cartoon-city-world/index.js
+index b7e7f5a..084f159 100644
+--- a/metaverse_modules/jarvis-cartoon-city-world/index.js
++++ b/metaverse_modules/jarvis-cartoon-city-world/index.js
+@@ -109,6 +109,8 @@ export default e => {
+     new THREE.BoxGeometry(180, 0.5, 180),
+     new THREE.MeshStandardMaterial({color: 0x58788d, roughness: 0.95}),
+   );
+-  ground.position.set(0, -0.25, 0);
++  // The ITHappy roads/plazas sit at y=0. Keep this fallback visual ground below
++  // them so two coplanar surfaces do not flicker as the camera moves.
++  ground.position.set(0, -0.75, 0);
+   ground.receiveShadow = true;
+   app.add(ground);

@@ -1,0 +1,59 @@
+diff --git a/blockchain.js b/blockchain.js
+index 03403f5..0c10088 100644
+--- a/blockchain.js
++++ b/blockchain.js
+@@ -6,8 +6,8 @@ import ethereumJsTx from './ethereumjs-tx.js';
+ import { makePromise } from './util.js';
+ import { chainName, web3MainnetSidechainEndpoint, web3TestnetSidechainEndpoint, polygonVigilKey } from './constants.js';
+ const { Transaction, Common } = ethereumJsTx;
+-import addresses from 'https://contracts.webaverse.com/config/addresses.js';
+-import abis from 'https://contracts.webaverse.com/config/abi.js';
++import addresses from './jarvis-compat/contract-addresses.js';
++import abis from './jarvis-compat/contract-abis.js';
+ 
+ export const Networks = {
+   mainnet: {
+diff --git a/jarvis-compat/contract-abis.js b/jarvis-compat/contract-abis.js
+new file mode 100644
+index 0000000..2ef1e83
+--- /dev/null
++++ b/jarvis-compat/contract-abis.js
+@@ -0,0 +1,11 @@
++// Jarvis compatibility patch: the runtime never invokes legacy Web3 contracts.
++export default {
++  Account: [],
++  FT: [],
++  FTProxy: [],
++  NFT: [],
++  NFTProxy: [],
++  Trade: [],
++  LAND: [],
++  LANDProxy: [],
++};
+diff --git a/jarvis-compat/contract-addresses.js b/jarvis-compat/contract-addresses.js
+new file mode 100644
+index 0000000..6b1159f
+--- /dev/null
++++ b/jarvis-compat/contract-addresses.js
+@@ -0,0 +1,21 @@
++// Jarvis compatibility patch: inert placeholders prevent remote contract fetches.
++const disabledAddress = '0x0000000000000000000000000000000000000000';
++const disabledNetwork = () => ({
++  Account: disabledAddress,
++  FT: disabledAddress,
++  FTProxy: disabledAddress,
++  NFT: disabledAddress,
++  NFTProxy: disabledAddress,
++  Trade: disabledAddress,
++  LAND: disabledAddress,
++  LANDProxy: disabledAddress,
++});
++
++export default {
++  mainnet: disabledNetwork(),
++  mainnetsidechain: disabledNetwork(),
++  polygon: disabledNetwork(),
++  testnet: disabledNetwork(),
++  testnetsidechain: disabledNetwork(),
++  testnetpolygon: disabledNetwork(),
++};

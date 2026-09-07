@@ -1,0 +1,57 @@
+diff --git a/preauthenticator.js b/preauthenticator.js
+index 9e7156f..bdebeaa 100644
+--- a/preauthenticator.js
++++ b/preauthenticator.js
+@@ -1,38 +1,13 @@
+-import * as preauthenticator from 'https://preauthenticator.webaverse.online/preauthenticator.js';
+-
+-let port = null;
+-const loadPromise = (async () => {
+-  port = await preauthenticator.connect();
+-})();
+-
+-const o = {
+-  async callAuthenticatedApi() {
+-    await loadPromise;
+-
+-    return port.callAuthenticatedApi.apply(port, arguments);
+-  },
+-  async setAuthenticatedApi() {
+-    await loadPromise;
+-
+-    return port.setAuthenticatedApi.apply(port, arguments);
+-  },
+-  async getAuthenticatedApi() {
+-    await loadPromise;
+-
+-    return port.getAuthenticatedApi.apply(port, arguments);
+-  },
+-  async hasAuthenticatedApi() {
+-    await loadPromise;
+-
+-    return  port.hasAuthenticatedApi.apply(port, arguments);
+-  },
+-  async deleteAuthenticatedApi() {
+-    await loadPromise;
+-
+-    return  port.deleteAuthenticatedApi.apply(port, arguments);
+-  },
+-  /* waitForLoad() {
+-    return loadPromise;
+-  }, */
+-};
+-export default o;
+\ No newline at end of file
++// The upstream preauthenticator endpoint was retired. Keep its optional
++// settings-only interface inert so it cannot prevent the game runtime booting.
++const unavailable = async () => {
++  throw new Error('Legacy Webaverse preauthenticator is unavailable in Jarvis World.');
++};
++
++export default {
++  callAuthenticatedApi: unavailable,
++  setAuthenticatedApi: unavailable,
++  getAuthenticatedApi: async () => null,
++  hasAuthenticatedApi: async () => false,
++  deleteAuthenticatedApi: async () => false,
++};

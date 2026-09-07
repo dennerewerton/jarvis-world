@@ -1,0 +1,45 @@
+diff --git a/io-manager.js b/io-manager.js
+index d6c2f4f..b1e7f10 100644
+--- a/io-manager.js
++++ b/io-manager.js
+@@ -773,7 +773,8 @@ ioManager.mousedown = e => {
+       game.menuMouseDown();
+     }
+     if ((changedButtons & 2) && (e.buttons & 2)) { // right
+-      // Right mouse is intentionally inert in the social, non-combat world.
++      e.preventDefault();
++      game.menuUnaim(); // clear a legacy aim action before it can draw a reticle
+     }
+   } else {
+     // Transform gizmos and the scene context menu are development-only.
+@@ -814,7 +815,8 @@ ioManager.mouseup = e => {
+         game.menuMouseUp();
+       }
+       if ((changedButtons & 2) && !(e.buttons & 2)) { // right
+-        game.menuUnaim();
++        e.preventDefault();
++        game.menuUnaim();
+       }
+     } else {
+       if ((changedButtons & 2) && !(e.buttons & 2)) { // right
+diff --git a/game.js b/game.js
+index 8bf47db..3b58f0e 100644
+--- a/game.js
++++ b/game.js
+@@ -1151,10 +1151,16 @@ export class GameManager extends EventTarget {
+   menuMouseUp() {
+     _mouseup();
+   }
+   menuAim() {
++    const localPlayer = playersManager.getLocalPlayer();
++    localPlayer.removeAction('aim');
+     return false;
+   }
+   menuUnaim() {
++    // Old Activity sessions can retain aim while the current social runtime is
++    // loading. Removing it here prevents target-reticle geometry from rendering.
++    const localPlayer = playersManager.getLocalPlayer();
++    localPlayer.removeAction('aim');
+     return false;
+   }
+   menuMiddleDown() {

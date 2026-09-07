@@ -1,0 +1,41 @@
+diff --git a/scenes/jarvis-webaverse-baseline.scn b/scenes/jarvis-webaverse-baseline.scn
+new file mode 100644
+index 0000000..1153f68
+--- /dev/null
++++ b/scenes/jarvis-webaverse-baseline.scn
+@@ -0,0 +1,35 @@
++{
++  "objects": [
++    {
++      "type": "application/light",
++      "content": {
++        "lightType": "ambient",
++        "args": [[255, 255, 255], 2]
++      }
++    },
++    {
++      "type": "application/light",
++      "content": {
++        "lightType": "directional",
++        "args": [[255, 255, 255], 2],
++        "position": [1, 2, 3]
++      }
++    },
++    {
++      "type": "application/spawnpoint",
++      "content": {
++        "position": [0, 2, 8],
++        "quaternion": [0, 0, 0, 1]
++      }
++    },
++    {
++      "start_url": "../metaverse_modules/street-base/"
++    },
++    {
++      "start_url": "../metaverse_modules/street/"
++    },
++    {
++      "start_url": "../metaverse_modules/skybox/"
++    }
++  ]
++}

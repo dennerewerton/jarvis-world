@@ -1,0 +1,59 @@
+diff --git a/index.mjs b/index.mjs
+index 2b424cb..b178d44 100644
+--- a/index.mjs
++++ b/index.mjs
+@@ -9,6 +9,8 @@ import wsrtc from 'wsrtc/wsrtc-server.mjs';
+ import metaversefilePlugin from 'metaversefile/plugins/rollup.js';
+ 
+ const SERVER_ADDR = '0.0.0.0';
++const JARVIS_SHARED_ROOM = 'jarvis-city';
++const JARVIS_SHARED_SCENE = './scenes/jarvis-cartoon-city.scn';
+ const SERVER_NAME = 'local.webaverse.com';
+ 
+ Error.stackTraceLimit = 300;
+@@ -175,6 +177,6 @@ function makeId(length) {
+   })();
+   const initialRoomState = (() => {
+-    const s = fs.readFileSync('./scenes/gunroom.scn', 'utf8');
++    const s = fs.readFileSync(JARVIS_SHARED_SCENE, 'utf8');
+     const j = JSON.parse(s);
+     const {objects} = j;
+     
+@@ -205,6 +207,6 @@ function makeId(length) {
+     }
+     return result;
+   })();
+-  const initialRoomNames = [];
++  const initialRoomNames = [JARVIS_SHARED_ROOM];
+   wsrtc.bindServer(wsServer, {
+     initialRoomState,
+     initialRoomNames,
+diff --git a/universe.js b/universe.js
+index 3164d96..9fe31d6 100644
+--- a/universe.js
++++ b/universe.js
+@@ -19,5 +19,16 @@ import {world} from './world.js';
+ import {resolveWorldsHost} from './src/jarvis-compat/worlds-host.mjs';
+ 
+ const physicsScene = physicsManager.getScene();
++const JARVIS_SHARED_ROOM = 'jarvis-city';
++const JARVIS_SHARED_SCENE = './scenes/jarvis-cartoon-city.scn';
++
++const resolveJarvisWorldSpec = worldSpec => {
++  // The authenticated Activity is a single shared city. Keep the standalone
++  // development entry free to exercise historical scene and room tooling.
++  if (typeof window === 'undefined' || /^\/standalone(?:\.html)?\/?$/i.test(window.location.pathname)) {
++    return worldSpec;
++  }
++  return {src: JARVIS_SHARED_SCENE, room: JARVIS_SHARED_ROOM};
++};
+ 
+ class Universe extends EventTarget {
+@@ -33,5 +44,6 @@ class Universe extends EventTarget {
+     return resolveWorldsHost(window.location);
+   }
+   async enterWorld(worldSpec) {
++    worldSpec = resolveJarvisWorldSpec(worldSpec);
+     this.disconnectRoom();
+     
+     const localPlayer = metaversefile.useLocalPlayer();

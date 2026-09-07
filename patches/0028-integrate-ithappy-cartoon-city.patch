@@ -1,0 +1,249 @@
+diff --git a/metaverse_modules/jarvis-cartoon-city-world/.metaversefile b/metaverse_modules/jarvis-cartoon-city-world/.metaversefile
+new file mode 100644
+index 0000000..0518eaf
+--- /dev/null
++++ b/metaverse_modules/jarvis-cartoon-city-world/.metaversefile
+@@ -0,0 +1,4 @@
++{
++  "name": "jarvis-cartoon-city-world",
++  "start_url": "index.js"
++}
+diff --git a/metaverse_modules/jarvis-cartoon-city-world/index.js b/metaverse_modules/jarvis-cartoon-city-world/index.js
+new file mode 100644
+index 0000000..caa7ce0
+--- /dev/null
++++ b/metaverse_modules/jarvis-cartoon-city-world/index.js
+@@ -0,0 +1,186 @@
++import * as THREE from 'three';
++import metaversefile from 'metaversefile';
++
++const {useApp, useCleanup, useFrame, useLoaders, useLocalPlayer, usePhysics} = metaversefile;
++
++const CITY_ROOT = '/assets/jarvis-world/3d/cartoon-city-free-v1';
++const DEFAULT_QUALITY = 'auto';
++const QUALITY_LOAD_DISTANCE = {low: 32, medium: 44, high: 64, auto: 48};
++const UNLOAD_MARGIN = 20;
++
++// These rectangles follow the reproducible splitter, not a hand-built city grid.
++const SECTORS = [
++  ['north-west', -70, -20, 37.5, 80], ['north-center', -20, 20, 37.5, 80], ['north-east', 20, 70, 37.5, 80],
++  ['north-central-west', -70, -20, 0, 37.5], ['north-central-center', -20, 20, 0, 37.5], ['north-central-east', 20, 70, 0, 37.5],
++  ['south-central-west', -70, -20, -37.5, 0], ['south-central-center', -20, 20, -37.5, 0], ['south-central-east', 20, 70, -37.5, 0],
++  ['south-west', -70, -20, -80, -37.5], ['south-center', -20, 20, -80, -37.5], ['south-east', 20, 70, -80, -37.5],
++].map(([id, minX, maxX, minZ, maxZ]) => ({id, minX, maxX, minZ, maxZ}));
++
++const BUILDING_COLLIDERS = [
++  {position: [-25.56, 28.695, 52.39], halfExtents: [19.25, 28.695, 9.62]},
++  {position: [33.27, 25.87, -6.8], halfExtents: [9.24, 25.87, 15.43]},
++  {position: [-25.285, 28.695, -37.17], halfExtents: [19.245, 28.695, 9.62]},
++  {position: [33.425, 12.205, -43.92], halfExtents: [9.545, 12.205, 19.1]},
++  {position: [-25.285, 28.695, 7.96], halfExtents: [19.245, 28.695, 9.62]},
++  {position: [30.135, 26.585, 45.885], halfExtents: [12.705, 26.585, 15.885]},
++];
++
++const distanceToSector = (position, sector) => {
++  const x = Math.max(sector.minX - position.x, 0, position.x - sector.maxX);
++  const z = Math.max(sector.minZ - position.z, 0, position.z - sector.maxZ);
++  return Math.hypot(x, z);
++};
++
++const addBeacon = (parent, position, color, height = 3) => {
++  const beacon = new THREE.Group();
++  beacon.position.fromArray(position);
++  const base = new THREE.Mesh(
++    new THREE.CylinderGeometry(0.72, 0.95, 0.22, 12),
++    new THREE.MeshStandardMaterial({color: 0x18384d, roughness: 0.5, metalness: 0.55}),
++  );
++  base.position.y = 0.11;
++  const pillar = new THREE.Mesh(
++    new THREE.CylinderGeometry(0.13, 0.2, height, 10),
++    new THREE.MeshBasicMaterial({color, transparent: true, opacity: 0.8}),
++  );
++  pillar.position.y = height / 2 + 0.18;
++  const marker = new THREE.Mesh(
++    new THREE.OctahedronGeometry(0.46, 0),
++    new THREE.MeshBasicMaterial({color}),
++  );
++  marker.position.y = height + 0.62;
++  beacon.add(base, pillar, marker);
++  parent.add(beacon);
++  return beacon;
++};
++
++const disposeObject = object => {
++  object.traverse(node => {
++    if (!node.isMesh) return;
++    node.geometry?.dispose();
++    const materials = Array.isArray(node.material) ? node.material : [node.material];
++    for (const material of materials) {
++      if (!material) continue;
++      for (const value of Object.values(material)) if (value?.isTexture) value.dispose();
++      material.dispose();
++    }
++  });
++};
++
++export default e => {
++  const app = useApp();
++  const physics = usePhysics();
++  const localPlayer = useLocalPlayer();
++  const {gltfLoader} = useLoaders();
++  const loaded = new Map();
++  const loading = new Map();
++  const failed = new Set();
++  const physicsIds = [];
++  let disposed = false;
++  let core;
++
++  app.setComponent('cityQuality', app.getComponent('cityQuality') || DEFAULT_QUALITY);
++  app.setComponent('citySource', 'ithappy-cartoon-city-free-v1');
++
++  const sky = new THREE.Mesh(
++    new THREE.SphereGeometry(150, 24, 16),
++    new THREE.MeshBasicMaterial({color: 0x7babc6, side: THREE.BackSide}),
++  );
++  sky.position.y = 45;
++  sky.frustumCulled = false;
++  app.add(sky);
++
++  const ground = new THREE.Mesh(
++    new THREE.BoxGeometry(180, 0.5, 180),
++    new THREE.MeshStandardMaterial({color: 0x58788d, roughness: 0.95}),
++  );
++  ground.position.set(0, -0.25, 0);
++  ground.receiveShadow = true;
++  app.add(ground);
++  physicsIds.push(physics.addBoxGeometry(
++    new THREE.Vector3(0, -0.25, 0), new THREE.Quaternion(), new THREE.Vector3(90, 0.25, 90), false,
++  ));
++  for (const collider of BUILDING_COLLIDERS) {
++    physicsIds.push(physics.addBoxGeometry(
++      new THREE.Vector3().fromArray(collider.position), new THREE.Quaternion(), new THREE.Vector3().fromArray(collider.halfExtents), false,
++    ));
++  }
++
++  // Jarvis branding is deliberately small: the ITHappy city remains the visual base.
++  const plazaBeacon = addBeacon(app, [-12.56, 0.02, 30.18], 0x5ff6ff, 4.2);
++  core = plazaBeacon.children[2];
++  addBeacon(app, [31.59, 53.55, 47.62], 0x41d9ff, 3.2); // Jarvis Tower crown
++  addBeacon(app, [10, 0.02, 14], 0x4ec9ff, 2.1); // Shop
++  addBeacon(app, [8, 0.02, -14], 0xe06cff, 2.1); // Arcade
++  addBeacon(app, [-34, 0.02, -14], 0xffc45a, 2.1); // Casino
++  addBeacon(app, [34, 0.02, -38], 0xff6f8d, 2.1); // Arena
++  addBeacon(app, [-34, 0.02, 14], 0x7fe0a3, 2.1); // Event Center
++  addBeacon(app, [-7, 0.02, 25], 0xffee87, 1.6); // Daily terminal
++
++  const loadSector = sector => {
++    if (loaded.has(sector.id)) return Promise.resolve(loaded.get(sector.id));
++    if (loading.has(sector.id)) return loading.get(sector.id);
++    if (failed.has(sector.id)) return Promise.resolve(null);
++    const promise = new Promise(resolve => {
++      gltfLoader.load(`${CITY_ROOT}/${sector.id}.gltf`, gltf => {
++        loading.delete(sector.id);
++        if (disposed) {
++          disposeObject(gltf.scene);
++          resolve(null);
++          return;
++        }
++        const group = gltf.scene;
++        group.name = `cartoon-city-sector:${sector.id}`;
++        group.traverse(node => {
++          if (!node.isMesh) return;
++          node.castShadow = false;
++          node.receiveShadow = true;
++          node.frustumCulled = true;
++        });
++        app.add(group);
++        loaded.set(sector.id, group);
++        resolve(group);
++      }, undefined, () => {
++        loading.delete(sector.id);
++        failed.add(sector.id);
++        resolve(null);
++      });
++    });
++    loading.set(sector.id, promise);
++    return promise;
++  };
++
++  const unloadSector = sector => {
++    const group = loaded.get(sector.id);
++    if (!group) return;
++    loaded.delete(sector.id);
++    app.remove(group);
++    disposeObject(group);
++  };
++
++  const initialSector = SECTORS.find(sector => sector.id === 'north-central-center');
++  e.waitUntil(loadSector(initialSector));
++
++  useFrame(({timestamp}) => {
++    if (core) core.rotation.y = timestamp / 1500;
++    const quality = app.getComponent('cityQuality');
++    const loadDistance = QUALITY_LOAD_DISTANCE[quality] || QUALITY_LOAD_DISTANCE.auto;
++    for (const sector of SECTORS) {
++      const distance = distanceToSector(localPlayer.position, sector);
++      if (distance <= loadDistance) {
++        loadSector(sector);
++      } else if (distance > loadDistance + UNLOAD_MARGIN) {
++        unloadSector(sector);
++      }
++    }
++  });
++
++  useCleanup(() => {
++    disposed = true;
++    for (const sector of SECTORS) unloadSector(sector);
++    for (const id of physicsIds) physics.removeGeometry(id);
++    disposeObject(app);
++  });
++
++  return app;
++};
+diff --git a/scenes/jarvis-cartoon-city.scn b/scenes/jarvis-cartoon-city.scn
+new file mode 100644
+index 0000000..3d2cb0c
+--- /dev/null
++++ b/scenes/jarvis-cartoon-city.scn
+@@ -0,0 +1,32 @@
++{
++  "objects": [
++    {
++      "type": "application/light",
++      "content": {
++        "lightType": "ambient",
++        "args": [[255, 255, 255], 1.5]
++      }
++    },
++    {
++      "type": "application/light",
++      "content": {
++        "lightType": "directional",
++        "args": [[255, 255, 255], 1.7],
++        "position": [1, 3, 2]
++      }
++    },
++    {
++      "type": "application/spawnpoint",
++      "content": {
++        "position": [-12.56, 2, 22],
++        "quaternion": [0, 0, 0, 1]
++      }
++    },
++    {
++      "components": [
++        {"key": "cityQuality", "value": "auto"}
++      ],
++      "start_url": "../metaverse_modules/jarvis-cartoon-city-world/"
++    }
++  ]
++}
+diff --git a/scenes/scenes.json b/scenes/scenes.json
+index a6efc19..67f08f0 100644
+--- a/scenes/scenes.json
++++ b/scenes/scenes.json
+@@ -1,3 +1,4 @@
+ [
++  "jarvis-cartoon-city.scn",
+   "jarvis-webaverse-baseline.scn",
+   "street.scn",

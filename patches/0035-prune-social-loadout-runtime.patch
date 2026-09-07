@@ -1,0 +1,50 @@
+diff --git a/game.js b/game.js
+--- a/game.js
++++ b/game.js
+@@ -18,6 +18,6 @@
+ import metaversefileApi from './metaversefile-api.js';
+ import * as metaverseModules from './metaverse-modules.js';
+-import loadoutManager from './loadout-manager.js';
++import loadoutManager from './jarvis-social-loadout.js';
+ import * as sounds from './sounds.js';
+ import {playersManager} from './players-manager.js';
+ import physicsManager from './physics-manager.js';
+diff --git a/jarvis-social-loadout.js b/jarvis-social-loadout.js
+new file mode 100644
+--- /dev/null
++++ b/jarvis-social-loadout.js
+@@ -0,0 +1,34 @@
++// Social-and-parkour builds do not equip gameplay items.  Keep this tiny
++// facade so historical game-manager calls are safe without loading the legacy
++// hotbar, inventory, object-sprite or infobox renderer dependency graph.
++class JarvisSocialLoadout extends EventTarget {
++  constructor() {
++    super();
++    this.selectedIndex = -1;
++  }
++
++  getHotbarRenderer() {
++    return null;
++  }
++
++  getInfoboxRenderer() {
++    return null;
++  }
++
++  getSelectedApp() {
++    return null;
++  }
++
++  setSelectedIndex() {
++    this.selectedIndex = -1;
++    return false;
++  }
++
++  getNextUsedIndex() {
++    return -1;
++  }
++
++  update() {}
++}
++
++export default new JarvisSocialLoadout();
