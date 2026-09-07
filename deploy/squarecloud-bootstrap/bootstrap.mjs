@@ -92,6 +92,7 @@ const prepareRuntime = async () => {
       patchPath,
     ], {cwd: totumRoot});
   }
+  await run(process.execPath, ['--check', 'io-manager.js'], {cwd: appRoot});
   await run('npm', [
     'install',
     '--legacy-peer-deps',

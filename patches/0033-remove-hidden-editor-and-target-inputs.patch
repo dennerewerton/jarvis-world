@@ -2,11 +2,18 @@ diff --git a/io-manager.js b/io-manager.js
 index 7994988..d6c2f4f 100644
 --- a/io-manager.js
 +++ b/io-manager.js
-@@ -594,18 +594,7 @@ ioManager.keyup = e => {
+@@ -593,23 +593,12 @@ ioManager.keydown = e => {
+       game.toggleMap();
+       break;
      } */
-     case 74: { // J
+-    case 74: { // J
 -      game.inventoryHack = !game.inventoryHack;
--      break;
++    case 74: // J
++    case 27: // esc
++    case 72: // H
++    case 192: // tilde / quote on Brazilian keyboard layouts
++      // Development, inventory-hack and construction shortcuts are disabled.
+       break;
 -    }
 -    case 27: { // esc
 -      game.setContextMenu(false);
@@ -19,11 +26,11 @@ index 7994988..d6c2f4f 100644
 -    }
 -    case 192: { // tilde
 -      game.toggleEditMode();
-+    case 72: // H
-+    case 192: // tilde / quote on Brazilian keyboard layouts
-+      // Development, inventory-hack and construction shortcuts are disabled.
-       break;
-     }
+-      break;
+-    }
+   }
+ };
+ ioManager.keypress = e => {
 @@ -784,7 +773,7 @@ ioManager.mousedown = e => {
        game.menuMouseDown();
      }
