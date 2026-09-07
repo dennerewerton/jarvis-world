@@ -145,7 +145,7 @@ test('a missing voice descriptor cannot prevent a remote avatar from rendering',
 });
 
 test('remote players get an immediate visible fallback while their avatar loads', () => {
-  assert.match(remotePlayerPresenceFallbackPatch, /new THREE\.CapsuleGeometry\(0\.22, 0\.92, 4, 8\)/);
+  assert.match(remotePlayerPresenceFallbackPatch, /new THREE\.CylinderGeometry\(0\.22, 0\.22, 1\.36, 8\)/);
   assert.match(remotePlayerPresenceFallbackPatch, /const initialTransform = this\.playerMap\.get\('transform'\);/);
   assert.match(remotePlayerPresenceFallbackPatch, /this\.presenceMarker\.position\.copy\(this\.position\);/);
   assert.match(remotePlayerPresenceFallbackPatch, /this\.presenceMarker\.visible = !this\.avatar;/);
