@@ -33,7 +33,7 @@ diff --git a/players-manager.js b/players-manager.js
 @@ -4,6 +4,7 @@
  // import * as THREE from 'three';
  import * as Z from 'zjs';
- import {LocalPlayer, RemotePlayer} from './character-controller.js?jarvis-runtime=64';
+ import {LocalPlayer, RemotePlayer} from './character-controller.js?jarvis-runtime=66';
 +import {setPlayersManager} from './player-avatar-binding.js';
  import metaversefileApi from 'metaversefile';
  import {makeId} from './util.js';
