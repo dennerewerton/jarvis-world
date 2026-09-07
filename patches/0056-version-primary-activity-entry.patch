@@ -1,0 +1,22 @@
+diff --git a/src/main.jsx b/src/main.jsx
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -1,6 +1,6 @@
+ import React from 'react';
+ import ReactDOM from 'react-dom';
+ 
+-import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx?jarvis-runtime=58';
++import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx?jarvis-runtime=61';
+ import {installPtBrLocalization} from './jarvis-compat/pt-BR.js';
+ 
+@@ -12,7 +12,7 @@ const loadWebaverseModule = async () => {
+ const loadWebaverseModule = async () => {
+   const attempts = [
+-    {delay: 0, load: () => import('./components/app')},
+-    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=60')},
+-    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=60')},
++    {delay: 0, load: () => import('./components/app/App.jsx?jarvis-retry=0&jarvis-runtime=61')},
++    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=61')},
++    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=61')},
+   ];
+   let lastError;

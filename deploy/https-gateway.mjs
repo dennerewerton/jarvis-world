@@ -71,7 +71,7 @@ export const secureResponseHeaders = (headers = {}, {tls = true} = {}) => {
   result['referrer-policy'] = 'no-referrer';
   result['x-content-type-options'] = 'nosniff';
   result['permissions-policy'] = 'camera=(), geolocation=(), microphone=()';
-  if (result['cache-control'] !== 'no-store') result['cache-control'] = 'no-cache';
+  result['cache-control'] = 'no-store';
   if (tls) result['strict-transport-security'] = 'max-age=31536000';
   return result;
 };

@@ -85,7 +85,7 @@ test('gateway replaces frame headers with the Discord Activity CSP', () => {
   }, {tls: true});
   assert.equal(headers['x-frame-options'], undefined);
   assert.equal(headers['strict-transport-security'], 'max-age=31536000');
-  assert.equal(headers['cache-control'], 'no-cache');
+  assert.equal(headers['cache-control'], 'no-store');
   assert.match(headers['content-security-policy'], /script-src 'self' 'wasm-unsafe-eval'/);
   assert.doesNotMatch(headers['content-security-policy'], /script-src[^;]*\s'unsafe-eval'/);
   assert.doesNotThrow(() => assertActivityHeaders(headers));

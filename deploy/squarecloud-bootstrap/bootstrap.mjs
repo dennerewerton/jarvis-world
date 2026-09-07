@@ -4,12 +4,12 @@ import path from 'node:path';
 
 const upstreamRepository = 'https://github.com/webaverse/app.git';
 const upstreamRevision = '561630539fe2055c117309c3d24c2cfc4d6763d5';
-const release = 'fw70-pilot-2026-09-07.60';
+const release = 'fw70-pilot-2026-09-07.61';
 const deploymentRoot = path.resolve('.');
 const runtimeRoot = path.join(deploymentRoot, '.webaverse-runtime');
 const patchesRoot = path.join(deploymentRoot, 'patches');
 const cityAssetsRoot = path.join(deploymentRoot, 'city-assets');
-const lastValidatedRuntimePatch = '0055-refresh-npc-character-runtime.patch';
+const lastValidatedRuntimePatch = '0056-version-primary-activity-entry.patch';
 const readyMarker = path.join(runtimeRoot, `.ready-${release}`);
 
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
