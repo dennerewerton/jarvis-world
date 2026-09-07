@@ -130,10 +130,7 @@ diff --git a/camera-manager.js b/camera-manager.js
 diff --git a/game.js b/game.js
 --- a/game.js
 +++ b/game.js
-@@ -15,10 +15,10 @@ import {world} from './world.js';
- import cameraManager from './camera-manager.js';
- import ioManager from './io-manager.js';
- import {scene, camera} from './renderer.js';
+@@ -15,8 +15,8 @@ import {maxGrabDistance, throwReleaseTime, storageHost, minFov, maxFov, throwAnimationDuration} from './constants.js';
 -import metaversefileApi from './metaversefile-api.js';
 +import metaversefileApi from './metaversefile-api.js?jarvis-runtime=66';
  import * as metaverseModules from './metaverse-modules.js';
