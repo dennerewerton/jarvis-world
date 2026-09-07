@@ -1,0 +1,72 @@
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -4,5 +4,5 @@ import { LoadingBox } from '../../LoadingBox.jsx';
+ import { PlayMode } from '../play-mode';
+-import JarvisSocialDashboard from '../../JarvisSocialDashboard.jsx';
++import JarvisSocialDashboard from '../../JarvisSocialDashboardSafe.jsx';
+ import QuickMenu from '../../QuickMenu.jsx';
+ import {DomRenderer} from '../../DomRenderer.jsx';
+ 
+diff --git a/src/JarvisSocialDashboardSafe.jsx b/src/JarvisSocialDashboardSafe.jsx
+new file mode 100644
+--- /dev/null
++++ b/src/JarvisSocialDashboardSafe.jsx
+@@ -0,0 +1,57 @@
++import React, {useContext, useState} from 'react';
++
++import {AppContext} from './components/app';
++import styles from './JarvisSocialDashboard.module.css';
++
++const NAV_ITEMS = [
++  ['map', 'M', 'Mapa'],
++  ['social', 'S', 'Social'],
++  ['guide', '?', 'Guia'],
++];
++
++export default function JarvisSocialDashboardSafe() {
++  const {state, setState} = useContext(AppContext);
++  const [panel, setPanel] = useState(null);
++  const chatOpen = state.openedPanel === 'ChatPanel';
++  const openChat = () => {
++    setPanel(null);
++    setState({openedPanel: chatOpen ? null : 'ChatPanel'});
++  };
++
++  return (
++    <nav className={styles.hud} aria-label="HUD social Jarvis World">
++      <section className={styles.profile} aria-label="Perfil Jarvis">
++        <div className={styles.avatarRing}><span>J</span></div>
++        <div className={styles.profileCopy}>
++          <strong>JARVIS WORLD</strong>
++          <span>@jarvis</span>
++          <em><i /> JARVIS CITY - SOCIAL</em>
++        </div>
++        <span className={styles.jarvisBadge}>J</span>
++      </section>
++
++      <section className={styles.leftRail} aria-label="Navegacao principal">
++        {NAV_ITEMS.map(([id, icon, label]) => (
++          <button key={id} type="button" className={panel === id ? styles.active : ''} onClick={() => setPanel(panel === id ? null : id)}>
++            <span>{icon}</span><strong>{label}</strong>
++          </button>
++        ))}
++      </section>
++
++      <section className={styles.socialAgenda}>
++        <header><span className={styles.targetIcon}>J</span><strong>ATIVIDADES SOCIAIS</strong></header>
++        <p><i className={styles.done} /> Explore a Jarvis Plaza <b>ATIVO</b></p>
++        <p><i /> Converse com outros jogadores <b>CHAT</b></p>
++      </section>
++
++      <section className={styles.socialDock}>
++        <button type="button" className={chatOpen ? styles.active : ''} onClick={openChat}><span>&#9679;</span><strong>Chat</strong><kbd>T</kbd></button>
++        <button type="button" onClick={() => window.dispatchEvent(new Event('jarvis-open-emotes'))}><span>:)</span><strong>Emotes</strong><kbd>Q</kbd></button>
++      </section>
++
++      <button type="button" className={styles.chatPrompt} onClick={openChat}><span>&#9993;</span><em>Digite uma mensagem...</em><b>&rsaquo;</b></button>
++      <footer className={styles.status}><i /><span>ONLINE</span><b /> <span>Discord Activity</span><b /> <strong>Jarvis City - Social</strong></footer>
++      {panel && <section className={styles.modal}><button className={styles.close} type="button" onClick={() => setPanel(null)}>x</button><small>JARVIS WORLD</small><h2>{panel === 'map' ? 'MAPA DA CIDADE' : panel === 'guide' ? 'COMO JOGAR' : 'SOCIAL'}</h2><p>Use WASD para mover, Shift para correr e Q para emotes.</p></section>}
++    </nav>
++  );
++}
