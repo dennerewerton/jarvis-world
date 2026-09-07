@@ -231,7 +231,7 @@ new file mode 100644
 index 0000000..0eb31d9
 --- /dev/null
 +++ b/src/jarvis-compat/ActivityShell.jsx
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,152 @@
 +import React, {useCallback, useEffect, useRef, useState} from 'react';
 +import {activityApi, ActivityApiError, clearActivitySession} from './activity-api.mjs';
 +import {authenticateDiscord, authorizeDiscord} from './activity-discord.js';
@@ -255,7 +255,6 @@ index 0000000..0eb31d9
 +  try {
 +    const canvas = document.createElement('canvas');
 +    const context = canvas.getContext('webgl2') || canvas.getContext('webgl');
-+    context?.getExtension('WEBGL_lose_context')?.loseContext();
 +    return Boolean(context);
 +  } catch (err) {
 +    return false;
@@ -627,4 +626,3 @@ index 0000000..e624a2e
 +  return protocol + '//' + hostname + ':' + (currentPort + 1) + '/worlds/';
 +};
 +
-
