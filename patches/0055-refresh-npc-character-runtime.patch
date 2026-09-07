@@ -1,0 +1,48 @@
+diff --git a/src/main.jsx b/src/main.jsx
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -12,7 +12,7 @@ const loadWebaverseModule = async () => {
+   const attempts = [
+     {delay: 0, load: () => import('./components/app')},
+-    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=58')},
+-    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=58')},
++    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=60')},
++    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=60')},
+   ];
+   let lastError;
+   for (const attempt of attempts) {
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -6,7 +6,7 @@ import { defaultPlayerSpec } from '../../../constants';
+ import game from '../../../game.js?jarvis-runtime=58';
+ import Webaverse from '../../../webaverse.js?jarvis-fw4=19&jarvis-runtime=58';
+ import universe from '../../../universe.js?jarvis-runtime=58';
+-import metaversefileApi from '../../../metaversefile-api.js?jarvis-runtime=58';
++import metaversefileApi from '../../../metaversefile-api.js?jarvis-runtime=60';
+ import cameraManager from '../../../camera-manager.js?jarvis-runtime=58';
+ import { world } from '../../../world.js?jarvis-runtime=58';
+ 
+diff --git a/metaversefile-api.js b/metaversefile-api.js
+--- a/metaversefile-api.js
++++ b/metaversefile-api.js
+@@ -30,6 +30,6 @@ import * as avatarCruncher from './avatar-cruncher.js';
+ import * as avatarSpriter from './avatar-spriter.js';
+ import {chatManager} from './chat-manager.js';
+ import loreAI from './ai/lore/lore-ai.js';
+-import npcManager from './npc-manager.js';
++import npcManager from './npc-manager.js?jarvis-runtime=60';
+ import mobManager from './mob-manager.js';
+ import universe from './universe.js';
+diff --git a/npc-manager.js b/npc-manager.js
+--- a/npc-manager.js
++++ b/npc-manager.js
+@@ -1,7 +1,7 @@
+ import * as THREE from 'three';
+ import Avatar from './avatars/avatars.js';
+ import physicsManager from './physics-manager.js';
+-import {LocalPlayer} from './character-controller.js';
++import {LocalPlayer} from './character-controller.js?jarvis-runtime=60';
+ import {playersManager} from './players-manager.js';
+ import * as voices from './voices.js';
+ import {world} from './world.js';
