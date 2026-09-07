@@ -1,0 +1,45 @@
+diff --git a/instancing.js b/instancing.js
+--- a/instancing.js
++++ b/instancing.js
+@@ -4,6 +4,6 @@ import {getRenderer} from './renderer.js';
+ // import { chunkMinForPosition, convertMeshToPhysicsMesh } from './util.js';
+ // import { PEEK_FACE_INDICES } from './constants.js';
+ import { ImmediateGLBufferAttribute } from './ImmediateGLBufferAttribute.js';
+-import Module from './public/bin/geometry.js';
++import Module from './bin/geometry.js';
+ import { Allocator } from './geometry-util.js';
+ // import { toHiraganaCase } from 'encoding-japanese';
+diff --git a/physx-lite.js b/physx-lite.js
+--- a/physx-lite.js
++++ b/physx-lite.js
+@@ -3,6 +3,6 @@
+ 
+ // import * as THREE from 'three';
+-import Module from './public/bin/app-wasm-worker.js';
++import Module from './bin/app-wasm-worker.js';
+ import {Allocator, ScratchStack} from './geometry-util.js';
+ 
+ const physxLite = {};
+diff --git a/physx.js b/physx.js
+--- a/physx.js
++++ b/physx.js
+@@ -5,7 +5,7 @@
+ import * as THREE from 'three';
+ // import {makePromise} from './util.js';
+ // import { getRenderer } from './renderer.js'
+-import Module from './public/bin/geometry.js';
++import Module from './bin/geometry.js';
+ import {Allocator, ScratchStack} from './geometry-util.js';
+ 
+ const localVector = new THREE.Vector3()
+diff --git a/sounds.js b/sounds.js
+--- a/sounds.js
++++ b/sounds.js
+@@ -1,6 +1,6 @@
+ import audioManager from './audio-manager.js';
+ import {loadAudioBuffer} from './util.js';
+-import soundFileSpecs from './public/sounds/sound-files.json';
++import soundFileSpecs from './sounds/sound-files.json';
+ 
+ const _getSoundFiles = regex => soundFileSpecs.filter(f => regex.test(f.name));
+ const soundFiles = {

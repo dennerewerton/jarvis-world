@@ -4,12 +4,12 @@ import path from 'node:path';
 
 const upstreamRepository = 'https://github.com/webaverse/app.git';
 const upstreamRevision = '561630539fe2055c117309c3d24c2cfc4d6763d5';
-const release = 'fw70-pilot-2026-09-07.76';
+const release = 'fw70-pilot-2026-09-07.77';
 const deploymentRoot = path.resolve('.');
 const runtimeRoot = path.join(deploymentRoot, '.webaverse-runtime');
 const patchesRoot = path.join(deploymentRoot, 'patches');
 const cityAssetsRoot = path.join(deploymentRoot, 'city-assets');
-const lastValidatedRuntimePatch = '0064-keep-world-running-without-demo-avatar.patch';
+const lastValidatedRuntimePatch = '0065-materialize-public-runtime-imports.patch';
 const readyMarker = path.join(runtimeRoot, `.ready-${release}`);
 
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
@@ -170,6 +170,24 @@ const hardenRealtimeUpdateDecoding = appRoot => {
   console.log('[Jarvis World] installed safe realtime update decoding.');
 };
 
+const materializePublicRuntimeImports = appRoot => {
+  const publicRoot = path.join(appRoot, 'public');
+  const binRoot = path.join(appRoot, 'bin');
+  fs.mkdirSync(binRoot, {recursive: true});
+  for (const name of ['app-wasm-worker.js', 'app-wasm-worker.wasm', 'geometry.js', 'geometry.wasm', 'geometry.worker.js']) {
+    const source = path.join(publicRoot, 'bin', name);
+    const target = path.join(binRoot, name);
+    if (!fs.existsSync(source)) throw new Error(`Missing public runtime import: ${source}`);
+    fs.copyFileSync(source, target);
+  }
+  const soundSource = path.join(publicRoot, 'sounds', 'sound-files.json');
+  const soundTarget = path.join(appRoot, 'sounds', 'sound-files.json');
+  if (!fs.existsSync(soundSource)) throw new Error(`Missing public runtime import: ${soundSource}`);
+  fs.mkdirSync(path.dirname(soundTarget), {recursive: true});
+  fs.copyFileSync(soundSource, soundTarget);
+  console.log('[Jarvis World] materialized Vite runtime imports outside public/.');
+};
+
 const prepareRuntime = async () => {
   if (fs.existsSync(readyMarker)) return;
   console.log(`[Jarvis World] preparing ${release} through ${lastValidatedRuntimePatch}`);
@@ -211,6 +229,7 @@ const prepareRuntime = async () => {
   }
 
   installThreeCapsuleCompat(appRoot);
+  materializePublicRuntimeImports(appRoot);
   hardenRealtimeUpdateDecoding(appRoot);
 
   const browserCompatPath = path.join(appRoot, 'jarvis-three-compat.js');
