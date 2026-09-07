@@ -1,0 +1,47 @@
+diff --git a/player-avatar-binding.js b/player-avatar-binding.js
+--- a/player-avatar-binding.js
++++ b/player-avatar-binding.js
+@@ -7,6 +7,12 @@ import {
+   getEyePosition,
+ } from './avatars/util.mjs';
+-import {playersManager} from './players-manager.js';
++
++// Injected by players-manager after LocalPlayer has finished evaluating. Keeping
++// this edge out of the module graph prevents an ESM temporal-dead-zone cycle.
++let playersManager = null;
++export function setPlayersManager(manager) {
++  playersManager = manager;
++}
+ 
+ const appSymbol = 'app'; // Symbol('app');
+ const avatarSymbol = 'avatar'; // Symbol('avatar');
+@@ -52,6 +57,11 @@ export function makeAvatar(app) {
+     const {skinnedVrm} = app;
+ 
+     const _getPlayerByAppInstanceId = instanceId => {
++      if (!playersManager) {
++        // Avatar binding can be reached while the local player is constructed.
++        return null;
++      }
++
+       const remotePlayers = playersManager.getRemotePlayers(); // Might have to be removed too
+       const localPlayer = playersManager.getLocalPlayer();
+       const result = localPlayer.appManager.getAppByInstanceId(instanceId);
+diff --git a/players-manager.js b/players-manager.js
+--- a/players-manager.js
++++ b/players-manager.js
+@@ -4,6 +4,7 @@
+ // import * as THREE from 'three';
+ import * as Z from 'zjs';
+ import {LocalPlayer, RemotePlayer} from './character-controller.js';
++import {setPlayersManager} from './player-avatar-binding.js';
+ import metaversefileApi from 'metaversefile';
+ import {makeId} from './util.js';
+ import {initialPosY, playersMapName} from './constants.js';
+@@ -124,5 +125,6 @@ class PlayersManager extends EventTarget {
+   }
+ }
+ const playersManager = new PlayersManager();
++setPlayersManager(playersManager);
+ 
+ export {
