@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const upstreamRepository = 'https://github.com/webaverse/app.git';
 const upstreamRevision = '561630539fe2055c117309c3d24c2cfc4d6763d5';
-const release = 'fw70-pilot-2026-09-07.64';
+const release = 'fw70-pilot-2026-09-07.65';
 const deploymentRoot = path.resolve('.');
 const runtimeRoot = path.join(deploymentRoot, '.webaverse-runtime');
 const patchesRoot = path.join(deploymentRoot, 'patches');
@@ -23,6 +23,98 @@ const run = (command, args, options = {}) => new Promise((resolve, reject) => {
     }
   });
 });
+
+const installThreeCapsuleCompat = appRoot => {
+  const threeModulePath = path.join(appRoot, 'packages', 'three', 'build', 'three.module.js');
+  if (!fs.existsSync(threeModulePath)) {
+    throw new Error('Pinned Three ESM build is missing from the Webaverse runtime.');
+  }
+
+  let source = fs.readFileSync(threeModulePath, 'utf8');
+  const shimMarker = 'class CapsuleGeometry extends CylinderGeometry';
+  if (!source.includes(shimMarker)) {
+    const exportIndex = source.lastIndexOf('export {');
+    if (exportIndex < 0) {
+      throw new Error('Unable to locate the Three ESM export block for CapsuleGeometry compatibility.');
+    }
+
+    const shim = `
+// Jarvis compatibility: Webaverse pins Three r134, which does not export
+// THREE.CapsuleGeometry. Some runtime/client paths can still request it.
+// Keep the public constructor available without upgrading the renderer stack.
+class CapsuleGeometry extends CylinderGeometry {
+  constructor(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
+    const safeRadius = Number.isFinite(radius) ? Math.max(0, radius) : 1;
+    const safeLength = Number.isFinite(length) ? Math.max(0, length) : 1;
+    const safeRadialSegments = Number.isFinite(radialSegments)
+      ? Math.max(3, Math.floor(radialSegments))
+      : 8;
+    super(
+      safeRadius,
+      safeRadius,
+      safeLength + safeRadius * 2,
+      safeRadialSegments,
+      1,
+      false,
+    );
+    this.type = 'CapsuleGeometry';
+    this.parameters = {
+      radius: safeRadius,
+      length: safeLength,
+      capSegments,
+      radialSegments: safeRadialSegments,
+    };
+  }
+}
+
+`;
+
+    source = `${source.slice(0, exportIndex)}${shim}${source.slice(exportIndex)}`;
+    const patchedExportIndex = source.lastIndexOf('export {');
+    source = `${source.slice(0, patchedExportIndex + 'export {'.length)} CapsuleGeometry,${source.slice(patchedExportIndex + 'export {'.length)}`;
+    fs.writeFileSync(threeModulePath, source, 'utf8');
+  }
+
+  const verified = fs.readFileSync(threeModulePath, 'utf8');
+  if (!verified.includes(shimMarker) || !verified.includes('export { CapsuleGeometry,')) {
+    throw new Error('Three CapsuleGeometry compatibility shim was not installed correctly.');
+  }
+
+  // Vite uses the ESM build above, but also keep the CommonJS/UMD entry safe for
+  // packages that resolve Three through package.json "main" during startup.
+  const threeUmdPath = path.join(appRoot, 'packages', 'three', 'build', 'three.js');
+  if (fs.existsSync(threeUmdPath)) {
+    let umd = fs.readFileSync(threeUmdPath, 'utf8');
+    const umdMarker = 'exports.CapsuleGeometry = CapsuleGeometry;';
+    if (!umd.includes(umdMarker)) {
+      const cylinderExport = 'exports.CylinderGeometry = CylinderGeometry;';
+      const cylinderExportIndex = umd.lastIndexOf(cylinderExport);
+      if (cylinderExportIndex >= 0) {
+        const shim = `
+	// Jarvis compatibility for Three r134.
+	class CapsuleGeometry extends CylinderGeometry {
+		constructor(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
+			const safeRadius = Number.isFinite(radius) ? Math.max(0, radius) : 1;
+			const safeLength = Number.isFinite(length) ? Math.max(0, length) : 1;
+			const safeRadialSegments = Number.isFinite(radialSegments) ? Math.max(3, Math.floor(radialSegments)) : 8;
+			super(safeRadius, safeRadius, safeLength + safeRadius * 2, safeRadialSegments, 1, false);
+			this.type = 'CapsuleGeometry';
+			this.parameters = {radius: safeRadius, length: safeLength, capSegments, radialSegments: safeRadialSegments};
+		}
+	}
+
+`;
+        umd = `${umd.slice(0, cylinderExportIndex)}${shim}${umd.slice(cylinderExportIndex)}`;
+        const patchedCylinderExportIndex = umd.lastIndexOf(cylinderExport);
+        const afterCylinderExport = patchedCylinderExportIndex + cylinderExport.length;
+        umd = `${umd.slice(0, afterCylinderExport)}\n\texports.CapsuleGeometry = CapsuleGeometry;${umd.slice(afterCylinderExport)}`;
+        fs.writeFileSync(threeUmdPath, umd, 'utf8');
+      }
+    }
+  }
+
+  console.log('[Jarvis World] installed Three CapsuleGeometry compatibility shim');
+};
 
 const prepareRuntime = async () => {
   if (fs.existsSync(readyMarker)) return;
@@ -66,13 +158,15 @@ const prepareRuntime = async () => {
     ], {cwd: appRoot});
   }
 
-  // THREE.CapsuleGeometry does not exist in the pinned Webaverse Three build.
-  // Fail deployment here instead of allowing this incompatibility to crash the
-  // authenticated Discord Activity after the runtime has already started.
+  // The pinned Webaverse renderer uses Three r134. Install a compatibility
+  // constructor at the dependency boundary so any remaining legacy or cached
+  // module that asks for THREE.CapsuleGeometry cannot crash the Activity.
+  installThreeCapsuleCompat(appRoot);
+
   const characterControllerPath = path.join(appRoot, 'character-controller.js');
   const characterControllerSource = fs.readFileSync(characterControllerPath, 'utf8');
   if (characterControllerSource.includes('THREE.CapsuleGeometry')) {
-    throw new Error('Unsupported THREE.CapsuleGeometry survived the Jarvis runtime patch queue.');
+    throw new Error('Unsupported direct THREE.CapsuleGeometry usage survived in character-controller.js.');
   }
   if (!characterControllerSource.includes(
     'new THREE.CylinderGeometry(0.22, 0.22, 1.36, 8)',
@@ -115,6 +209,23 @@ const prepareRuntime = async () => {
     '--no-audit',
     '--no-fund',
   ], {cwd: appRoot});
+
+  const installedThreeModulePath = path.join(
+    appRoot,
+    'node_modules',
+    'three',
+    'build',
+    'three.module.js',
+  );
+  if (
+    !fs.existsSync(installedThreeModulePath)
+    || !fs.readFileSync(installedThreeModulePath, 'utf8').includes(
+      'class CapsuleGeometry extends CylinderGeometry',
+    )
+  ) {
+    throw new Error('Installed Three package lost the Jarvis CapsuleGeometry compatibility shim.');
+  }
+
   fs.writeFileSync(readyMarker, `${release}\n`, {encoding: 'utf8', flag: 'wx'});
 };
 
