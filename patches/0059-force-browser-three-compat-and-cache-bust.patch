@@ -31,7 +31,7 @@ diff --git a/jarvis-three-compat.js b/jarvis-three-compat.js
 new file mode 100644
 --- /dev/null
 +++ b/jarvis-three-compat.js
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,30 @@
 +import * as BaseThree from './packages/three/build/three.module.js';
 +
 +export * from './packages/three/build/three.module.js';
