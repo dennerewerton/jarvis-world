@@ -1,0 +1,35 @@
+diff --git a/src/jarvis-compat/react-contexts.js b/src/jarvis-compat/react-contexts.js
+new file mode 100644
+--- /dev/null
++++ b/src/jarvis-compat/react-contexts.js
+@@ -0,0 +1,5 @@
++import {createContext} from 'react';
++
++// Providers and consumers share these identities across versioned UI entries.
++export const AppContext = createContext();
++export const JarvisIdentityContext = createContext(null);
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -43,7 +43,8 @@
+ 
+ };
+ 
+-export const AppContext = createContext();
++import {AppContext} from '../../jarvis-compat/react-contexts.js';
++export {AppContext};
+ 
+ const useWebaverseApp = (() => {
+   let webaverse = null;
+diff --git a/src/jarvis-compat/ActivityShell.jsx b/src/jarvis-compat/ActivityShell.jsx
+--- a/src/jarvis-compat/ActivityShell.jsx
++++ b/src/jarvis-compat/ActivityShell.jsx
+@@ -4,6 +4,7 @@
+ import {loadJarvisIdentity} from './jarvis-bridge.mjs';
+ import styles from './activity-shell.module.css';
+ 
+-export const JarvisIdentityContext = createContext(null);
++import {JarvisIdentityContext} from './react-contexts.js';
++export {JarvisIdentityContext};
+ 
+ const stageCopy = {
