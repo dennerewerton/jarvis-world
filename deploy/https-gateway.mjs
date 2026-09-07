@@ -152,6 +152,37 @@ export const createGateway = config => {
       sendGatewayError(response, 404, 'not found', config);
       return;
     }
+    if (pathname === '/__jarvis/client-error') {
+      if (request.method !== 'POST') {
+        sendGatewayError(response, 405, 'method not allowed', config);
+        return;
+      }
+      const chunks = [];
+      let size = 0;
+      request.on('data', chunk => {
+        size += chunk.length;
+        if (size <= 16_384) chunks.push(chunk);
+      });
+      request.on('end', () => {
+        if (size > 16_384) {
+          sendGatewayError(response, 413, 'payload too large', config);
+          return;
+        }
+        try {
+          const report = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          const message = String(report?.message || 'unknown client error').slice(0, 1_000);
+          const stack = String(report?.stack || '').slice(0, 8_000);
+          console.error(`[Jarvis World client error] ${message}${stack ? `\n${stack}` : ''}`);
+        } catch {
+          console.error('[Jarvis World client error] malformed report');
+        }
+        response.writeHead(204, secureResponseHeaders({
+          'cache-control': 'no-store',
+        }, {tls: config.externalTls}));
+        response.end();
+      });
+      return;
+    }
     const target = targets[selectUpstream(pathname)];
     const proxyRequest = http.request({
       host: target.host,

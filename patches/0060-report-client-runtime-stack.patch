@@ -1,0 +1,86 @@
+diff --git a/index.html b/index.html
+--- a/index.html
++++ b/index.html
+@@ -22,8 +22,8 @@
+ <body>
+   <div id=iframe-container></div>
+   <div id="root"></div>
+-  <script type=module src="/pre.js?jarvis-runtime=66"></script>
+-  <script type=module src="/src/main.jsx?jarvis-runtime=66"></script>
++  <script type=module src="/pre.js?jarvis-runtime=69"></script>
++  <script type=module src="/src/main.jsx?jarvis-runtime=69"></script>
+ </body>
+ 
+ </html>
+diff --git a/src/main.jsx b/src/main.jsx
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -1,6 +1,6 @@
+ import React from 'react';
+ import ReactDOM from 'react-dom';
+ 
+-import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx?jarvis-runtime=66';
++import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx?jarvis-runtime=69';
+ import {installPtBrLocalization} from './jarvis-compat/pt-BR.js';
+ 
+@@ -12,7 +12,7 @@ const loadWebaverseModule = async () => {
+ const loadWebaverseModule = async () => {
+   const attempts = [
+-    {delay: 0, load: () => import('./components/app/App.jsx?jarvis-retry=0&jarvis-runtime=66')},
+-    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=66')},
+-    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=66')},
++    {delay: 0, load: () => import('./components/app/App.jsx?jarvis-retry=0&jarvis-runtime=69')},
++    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=69')},
++    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=69')},
+   ];
+   let lastError;
+@@ -46,7 +46,8 @@ class RuntimeErrorBoundary extends React.Component {
+   componentDidCatch(error) {
+     console.error('Webaverse render failed', error);
+     const message = error instanceof Error ? error.message : String(error || 'Erro de renderização desconhecido.');
+-    window.dispatchEvent(new CustomEvent('jarvis-webaverse-runtime-error', {detail: {message}}));
++    const stack = error instanceof Error && typeof error.stack === 'string' ? error.stack : '';
++    window.dispatchEvent(new CustomEvent('jarvis-webaverse-runtime-error', {detail: {message, stack}}));
+   }
+ 
+   render() {
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -67,7 +67,8 @@ const Canvas = ({
+             _startApp( app, canvasRef.current ).catch(error => {
+                 console.error('Webaverse runtime startup failed', error);
+                 const message = error instanceof Error ? error.message : String(error || 'Erro de inicialização desconhecido.');
+-                window.dispatchEvent(new CustomEvent('jarvis-webaverse-runtime-error', {detail: {message}}));
++                const stack = error instanceof Error && typeof error.stack === 'string' ? error.stack : '';
++                window.dispatchEvent(new CustomEvent('jarvis-webaverse-runtime-error', {detail: {message, stack}}));
+             });
+ 
+         }
+diff --git a/src/jarvis-compat/ActivityShell.jsx b/src/jarvis-compat/ActivityShell.jsx
+--- a/src/jarvis-compat/ActivityShell.jsx
++++ b/src/jarvis-compat/ActivityShell.jsx
+@@ -118,9 +118,22 @@ export const ActivityShell = ({children}) => {
+     const handleRuntimeFailure = event => {
+       clearActivitySession();
+       const detail = typeof event?.detail?.message === 'string' ? event.detail.message.trim() : '';
++      const stack = typeof event?.detail?.stack === 'string' ? event.detail.stack.trim() : '';
++      const frame = stack.split('\n').map(line => line.trim()).find(line => line.startsWith('at ')) || '';
++      if (detail || stack) {
++        void fetch('/__jarvis/client-error', {
++          method: 'POST',
++          headers: {'content-type': 'application/json'},
++          body: JSON.stringify({
++            message: detail || 'Erro de runtime sem mensagem.',
++            stack,
++          }),
++          keepalive: true,
++        }).catch(() => {});
++      }
+       setState({
+         stage: 'runtime_error',
+-        message: detail ? `Detalhe técnico: ${detail}` : undefined,
++        message: detail ? `Detalhe técnico: ${detail}${frame ? ` | ${frame}` : ''}` : undefined,
+       });
+     };
+     const handleContextLost = event => {
