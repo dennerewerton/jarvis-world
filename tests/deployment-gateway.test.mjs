@@ -91,6 +91,12 @@ test('gateway replaces frame headers with the Discord Activity CSP', () => {
   assert.doesNotThrow(() => assertActivityHeaders(headers));
 });
 
+test('gateway can clear a stale browser module cache on the Activity entry response', () => {
+  const headers = secureResponseHeaders({}, {tls: true, clearCache: true});
+  assert.equal(headers['cache-control'], 'no-store');
+  assert.equal(headers['clear-site-data'], '"cache"');
+});
+
 test('public smoke accepts HTTPS and rejects accidental HTTP by default', () => {
   assert.equal(normalizeOrigin('https://activity.example').origin, 'https://activity.example');
   assert.throws(() => normalizeOrigin('http://activity.example'), /must use HTTPS/);

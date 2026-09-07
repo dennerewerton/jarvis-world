@@ -59,7 +59,7 @@ export const isStandalonePath = pathname => (
   /^\/standalone(?:\.html)?\/?$/i.test(decodePathname(pathname))
 );
 
-export const secureResponseHeaders = (headers = {}, {tls = true} = {}) => {
+export const secureResponseHeaders = (headers = {}, {tls = true, clearCache = false} = {}) => {
   const result = {};
   for (const [name, value] of Object.entries(headers)) {
     const normalized = name.toLowerCase();
@@ -72,6 +72,7 @@ export const secureResponseHeaders = (headers = {}, {tls = true} = {}) => {
   result['x-content-type-options'] = 'nosniff';
   result['permissions-policy'] = 'camera=(), geolocation=(), microphone=()';
   result['cache-control'] = 'no-store';
+  if (clearCache) result['clear-site-data'] = '"cache"';
   if (tls) result['strict-transport-security'] = 'max-age=31536000';
   return result;
 };
@@ -161,7 +162,10 @@ export const createGateway = config => {
     }, proxyResponse => {
       response.writeHead(
         proxyResponse.statusCode || 502,
-        secureResponseHeaders(proxyResponse.headers, {tls: config.externalTls}),
+        secureResponseHeaders(proxyResponse.headers, {
+          tls: config.externalTls,
+          clearCache: pathname === '/' || pathname === '/index.html',
+        }),
       );
       proxyResponse.pipe(response);
     });
