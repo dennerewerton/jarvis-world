@@ -4,12 +4,12 @@ import path from 'node:path';
 
 const upstreamRepository = 'https://github.com/webaverse/app.git';
 const upstreamRevision = '561630539fe2055c117309c3d24c2cfc4d6763d5';
-const release = 'fw70-pilot-2026-09-07.75';
+const release = 'fw70-pilot-2026-09-07.76';
 const deploymentRoot = path.resolve('.');
 const runtimeRoot = path.join(deploymentRoot, '.webaverse-runtime');
 const patchesRoot = path.join(deploymentRoot, 'patches');
 const cityAssetsRoot = path.join(deploymentRoot, 'city-assets');
-const lastValidatedRuntimePatch = '0063-share-react-contexts-across-ui-entries.patch';
+const lastValidatedRuntimePatch = '0064-keep-world-running-without-demo-avatar.patch';
 const readyMarker = path.join(runtimeRoot, `.ready-${release}`);
 
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
@@ -131,6 +131,45 @@ const installThreeCapsuleCompat = appRoot => {
   console.log(`[Jarvis World] installed Three CapsuleGeometry compatibility shim in ${patched} resolved package root(s)`);
 };
 
+const hardenRealtimeUpdateDecoding = appRoot => {
+  const serverPath = path.join(appRoot, 'packages', 'wsrtc', 'wsrtc-server.mjs');
+  let source = fs.readFileSync(serverPath, 'utf8').replace(/\r\n/g, '\n');
+  const marker = 'const alignedData = new Uint8Array(byteLength);';
+  if (!source.includes(marker)) {
+    const original = `          case MESSAGE.STATE_UPDATE: {
+            const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+            const data = new Uint8Array(e.data.buffer, e.data.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+            Z.applyUpdate(room.state, data, playerId);
+            break;
+          }`;
+    const replacement = `          case MESSAGE.STATE_UPDATE: {
+            const headerSize = 2 * Uint32Array.BYTES_PER_ELEMENT;
+            const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+            if (byteLength > e.data.byteLength - headerSize) {
+              console.warn('rejected invalid realtime state update', {playerId, byteLength});
+              ws.close(1008, 'Invalid realtime update');
+              break;
+            }
+            const alignedData = new Uint8Array(byteLength);
+            alignedData.set(new Uint8Array(e.data.buffer, e.data.byteOffset + headerSize, byteLength));
+            try {
+              Z.applyUpdate(room.state, alignedData, playerId);
+            } catch (error) {
+              console.warn('rejected invalid realtime state update', {playerId, error: error?.message || String(error)});
+              ws.close(1008, 'Invalid realtime update');
+            }
+            break;
+          }`;
+    if (!source.includes(original)) throw new Error('Unable to locate wsrtc state handler.');
+    source = source.replace(original, replacement);
+    fs.writeFileSync(serverPath, source, 'utf8');
+  }
+  if (!fs.readFileSync(serverPath, 'utf8').includes(marker)) {
+    throw new Error('Webaverse realtime update hardening was not installed.');
+  }
+  console.log('[Jarvis World] installed safe realtime update decoding.');
+};
+
 const prepareRuntime = async () => {
   if (fs.existsSync(readyMarker)) return;
   console.log(`[Jarvis World] preparing ${release} through ${lastValidatedRuntimePatch}`);
@@ -172,6 +211,7 @@ const prepareRuntime = async () => {
   }
 
   installThreeCapsuleCompat(appRoot);
+  hardenRealtimeUpdateDecoding(appRoot);
 
   const browserCompatPath = path.join(appRoot, 'jarvis-three-compat.js');
   if (!fs.existsSync(browserCompatPath)) {

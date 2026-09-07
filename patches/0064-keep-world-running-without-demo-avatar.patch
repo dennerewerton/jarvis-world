@@ -1,0 +1,33 @@
+diff --git a/constants.js b/constants.js
+--- a/constants.js
++++ b/constants.js
+@@ -168,7 +168,8 @@ export const defaultVoicePackName = `ShiShi voice pack`;
+ export const defaultPlayerSpec = {
+   name: 'Scillia',
+   previewUrl: './images/characters/upstreet/small/scillia.png',
+-  avatarUrl: './avatars/scilly_drophunter_v31.7_fuji.vrm',
++  // This upstream demo asset is absent from the pinned repository.
++  avatarUrl: null,
+   voice: defaultVoiceEndpoint,
+   voicePack: defaultVoicePackName,
+   class: 'Drop Hunter',
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -38,7 +38,14 @@ const _startApp = async ( weba, canvas ) => {
+     await weba.startLoop();
+ 
+     const localPlayer = metaversefileApi.useLocalPlayer();
+-    // console.log('set player spec', defaultPlayerSpec);
+-    await localPlayer.setPlayerSpec(defaultPlayerSpec);
++    // The upstream demo avatar is no longer bundled by the pinned revision.
++    // Keep the world playable while a player chooses an available avatar later.
++    if (defaultPlayerSpec.avatarUrl) {
++        try {
++            await localPlayer.setPlayerSpec(defaultPlayerSpec);
++        } catch (error) {
++            console.warn('Default avatar could not be loaded; continuing without one.', error);
++        }
++    }
+ 
+ };
