@@ -4,12 +4,12 @@ import path from 'node:path';
 
 const upstreamRepository = 'https://github.com/webaverse/app.git';
 const upstreamRevision = '561630539fe2055c117309c3d24c2cfc4d6763d5';
-const release = 'fw70-pilot-2026-09-07.63';
+const release = 'fw70-pilot-2026-09-07.64';
 const deploymentRoot = path.resolve('.');
 const runtimeRoot = path.join(deploymentRoot, '.webaverse-runtime');
 const patchesRoot = path.join(deploymentRoot, 'patches');
 const cityAssetsRoot = path.join(deploymentRoot, 'city-assets');
-const lastValidatedRuntimePatch = '0057-isolate-current-player-module-chain.patch';
+const lastValidatedRuntimePatch = '0058-normalize-player-runtime-module-chain.patch';
 const readyMarker = path.join(runtimeRoot, `.ready-${release}`);
 
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
@@ -65,6 +65,21 @@ const prepareRuntime = async () => {
       patchPath,
     ], {cwd: appRoot});
   }
+
+  // THREE.CapsuleGeometry does not exist in the pinned Webaverse Three build.
+  // Fail deployment here instead of allowing this incompatibility to crash the
+  // authenticated Discord Activity after the runtime has already started.
+  const characterControllerPath = path.join(appRoot, 'character-controller.js');
+  const characterControllerSource = fs.readFileSync(characterControllerPath, 'utf8');
+  if (characterControllerSource.includes('THREE.CapsuleGeometry')) {
+    throw new Error('Unsupported THREE.CapsuleGeometry survived the Jarvis runtime patch queue.');
+  }
+  if (!characterControllerSource.includes(
+    'new THREE.CylinderGeometry(0.22, 0.22, 1.36, 8)',
+  )) {
+    throw new Error('Jarvis remote-player fallback geometry patch is missing from the runtime.');
+  }
+
   if (!fs.existsSync(cityAssetsRoot)) {
     throw new Error('Jarvis local city assets are missing from the deployment root.');
   }
