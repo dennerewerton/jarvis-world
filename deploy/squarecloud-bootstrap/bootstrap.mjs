@@ -4,11 +4,12 @@ import path from 'node:path';
 
 const upstreamRepository = 'https://github.com/webaverse/app.git';
 const upstreamRevision = '561630539fe2055c117309c3d24c2cfc4d6763d5';
-const release = 'fw69-pilot-2026-09-07.50';
+const release = 'fw70-pilot-2026-09-07.51';
 const deploymentRoot = path.resolve('.');
 const runtimeRoot = path.join(deploymentRoot, '.webaverse-runtime');
 const patchesRoot = path.join(deploymentRoot, 'patches');
 const cityAssetsRoot = path.join(deploymentRoot, 'city-assets');
+const lastValidatedRuntimePatch = '0050-show-remote-player-presence-fallback.patch';
 const readyMarker = path.join(runtimeRoot, `.ready-${release}`);
 
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
@@ -25,6 +26,7 @@ const run = (command, args, options = {}) => new Promise((resolve, reject) => {
 
 const prepareRuntime = async () => {
   if (fs.existsSync(readyMarker)) return;
+  console.log(`[Jarvis World] preparing ${release} through ${lastValidatedRuntimePatch}`);
   if (!fs.existsSync(path.join(patchesRoot, '0010-add-discord-activity-shell.patch'))) {
     throw new Error('Jarvis patch queue is missing from the deployment root.');
   }
@@ -43,7 +45,9 @@ const prepareRuntime = async () => {
   ], {cwd: runtimeRoot});
   const appRoot = runtimeRoot;
   const patches = fs.readdirSync(patchesRoot)
-    .filter(name => name.endsWith('.patch'))
+    // Square Cloud keeps application storage between deploys. Do not allow a
+    // stale or partially uploaded future patch from an older ZIP to execute.
+    .filter(name => name.endsWith('.patch') && name <= lastValidatedRuntimePatch)
     .sort();
   for (const patchName of patches) {
     const patchPath = path.join(patchesRoot, patchName);
