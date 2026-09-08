@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const upstreamRepository = 'https://github.com/webaverse/app.git';
 const upstreamRevision = '561630539fe2055c117309c3d24c2cfc4d6763d5';
-const release = 'fw70-pilot-2026-09-07.81';
+const release = 'fw70-pilot-2026-09-07.82';
 const deploymentRoot = path.resolve('.');
 const runtimeRoot = path.join(deploymentRoot, '.webaverse-runtime');
 const patchesRoot = path.join(deploymentRoot, 'patches');
@@ -170,6 +170,19 @@ const hardenRealtimeUpdateDecoding = appRoot => {
   console.log('[Jarvis World] installed safe realtime update decoding.');
 };
 
+const diagnoseTotumSource = appRoot => {
+  const target = path.join(appRoot, 'packages', 'totum', 'types', 'jsx.js');
+  let source = fs.readFileSync(target, 'utf8');
+  if (!source.includes('Totum source unavailable:')) {
+    source = source.replace(
+      'src = await res.text();',
+      `if (!res.ok) throw new Error('Totum source unavailable: ' + res.status + ' ' + id);\n      src = await res.text();`,
+    );
+    fs.writeFileSync(target, source, 'utf8');
+  }
+  console.log('[Jarvis World] installed Totum source diagnostics.');
+};
+
 const materializePublicRuntimeImports = appRoot => {
   const publicRoot = path.join(appRoot, 'public');
   const binRoot = path.join(appRoot, 'bin');
@@ -231,6 +244,7 @@ const prepareRuntime = async () => {
   installThreeCapsuleCompat(appRoot);
   materializePublicRuntimeImports(appRoot);
   hardenRealtimeUpdateDecoding(appRoot);
+  diagnoseTotumSource(appRoot);
 
   const browserCompatPath = path.join(appRoot, 'jarvis-three-compat.js');
   if (!fs.existsSync(browserCompatPath)) {
