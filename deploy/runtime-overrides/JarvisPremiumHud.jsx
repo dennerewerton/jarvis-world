@@ -1,0 +1,66 @@
+import React, {useContext, useState} from 'react';
+import {AppContext} from '../../.webaverse-runtime/src/components/app';
+import {JarvisIdentityContext} from '../../.webaverse-runtime/src/jarvis-compat/ActivityShell.jsx';
+
+const I = ({name, size=24}) => {
+  const p={width:size,height:size,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.9,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':true};
+  const d={
+    map:<><path d="M3 6l5-3 8 3 5-3v15l-5 3-8-3-5 3z"/><path d="M8 3v15M16 6v15"/></>,
+    users:<><circle cx="9" cy="8" r="3"/><path d="M3 19c.5-3.5 2.5-5.5 6-5.5s5.5 2 6 5.5"/><circle cx="17.5" cy="9" r="2"/></>,
+    daily:<><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="m8 15 2 2 5-5"/></>,
+    shop:<><path d="M4 10h16l-1-5H5z"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></>,
+    compass:<><circle cx="12" cy="12" r="9"/><path d="m16 8-3 6-6 3 3-6z"/></>,
+    gear:<><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></>,
+    event:<><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="m12 12 1 2 2 .3-1.5 1.5.4 2.2-1.9-1-1.9 1 .4-2.2L9 14.3l2-.3z"/></>,
+    chat:<><path d="M4 5h16v12H9l-5 3z"/><path d="M8 11h.1M12 11h.1M16 11h.1"/></>,
+    smile:<><circle cx="12" cy="12" r="9"/><path d="M8 14c1 2 2.4 3 4 3s3-1 4-3M8.5 9h.1M15.5 9h.1"/></>,
+    run:<><circle cx="15" cy="4" r="2"/><path d="m13 8-3 4 4 2 1 6M13 8l4 2 3-1M10 12l-3 5-3 1M14 14l-4 5"/></>,
+    jump:<><path d="M12 20V5m-6 6 6-6 6 6M5 20h14"/></>,
+    crown:<><path d="m4 8 4 3 4-6 4 6 4-3-2 10H6zM6 18h12"/></>,
+    coin:<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="6"/><path d="M15 9c-1-.8-5-1.2-5 1 0 2 5 1 5 4 0 2-4 2-6 1M12 7v10"/></>,
+  }; return <svg {...p}>{d[name]||d.compass}</svg>;
+};
+
+const css=`
+.jh{position:fixed;inset:0;z-index:1000;pointer-events:none;color:#f7fdff;font-family:Inter,Muli,system-ui,sans-serif;text-shadow:0 1px 2px #00152b}.jh *{box-sizing:border-box}.jh button{pointer-events:auto;color:inherit;font:inherit;cursor:pointer}
+.jp{background:linear-gradient(135deg,rgba(5,22,50,.96),rgba(8,72,116,.91));border:2px solid rgba(68,221,255,.84);box-shadow:0 12px 28px rgba(0,0,0,.4),inset 0 0 22px rgba(61,216,255,.1)}
+.prof{position:fixed;left:16px;top:16px;width:310px;height:78px;border-radius:18px 18px 32px 18px;padding:9px 30px 9px 72px;display:flex;align-items:center}.av{position:absolute;left:-2px;width:66px;height:66px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#a66cff,#164d9b 70%);border:4px solid #84efff;box-shadow:0 0 0 4px rgba(144,83,255,.7),0 0 18px #43dfff;font-size:24px;font-weight:900}.av img{width:100%;height:100%;object-fit:cover}.pc{display:grid;min-width:0}.pc strong{font-size:18px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pc span{font-size:11px;color:#b7dbf4}.pc em{font-style:normal;color:#7feaff;font-size:8px;font-weight:900;letter-spacing:.12em;margin-top:3px}
+.top{position:fixed;right:16px;top:16px;display:flex;gap:8px}.wallet{height:48px;min-width:165px;border-radius:18px;display:flex;align-items:center;gap:8px;padding:0 12px;background:linear-gradient(135deg,#071a32,#075b51);border:2px solid #38e7ad}.coin{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:linear-gradient(145deg,#fff47c,#ffb000);box-shadow:inset 0 0 0 3px #d97d00;color:#fff3a0}.wallet strong{margin-left:auto;font-size:17px}.wallet small{font-size:9px;color:#8effd1;font-weight:900}.top button{width:46px;height:46px;border-radius:14px;border:1px solid #46d8ff;background:linear-gradient(145deg,#0a315d,#075a8a);display:grid;place-items:center}
+.rail{position:fixed;left:16px;top:112px;display:grid;gap:8px}.rail button{width:62px;height:62px;border-radius:15px;border:1px solid #43d8ff;background:linear-gradient(145deg,#061d3d,#0a5279);display:grid;place-items:center;padding:5px;position:relative}.rail button:hover,.rail button.on{border-color:#c071ff;background:linear-gradient(145deg,#173b75,#682f9f);transform:translateX(3px)}.rail span{height:27px;color:#8beeff}.rail strong{font-size:9px}.rail kbd{position:absolute;right:-7px;bottom:5px;background:#06172b;border:1px solid #5e7892;border-radius:4px;padding:1px 4px;font-size:7px}
+.missions{position:fixed;right:16px;top:82px;width:300px;border-radius:18px;padding:10px 13px}.missions header{display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid rgba(91,215,255,.3)}.missions header span{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#61eaff;color:#05365b}.missions header strong{font-size:12px}.missions p{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:7px;margin:0;min-height:34px;border-bottom:1px solid rgba(104,202,235,.18);font-size:10px}.missions p:last-child{border:0}.ck{width:14px;height:14px;border:1px solid #5edfff;border-radius:4px}.ck.ok{background:#42e7ad;box-shadow:0 0 8px rgba(66,231,173,.5)}.missions b{font-size:8px;color:#72eaff}
+.features{position:fixed;right:16px;top:247px;width:300px;display:grid;gap:8px}.feature{height:58px;border-radius:16px;border:1px solid #5edaff;display:grid;grid-template-columns:40px 1fr 12px;align-items:center;gap:9px;padding:7px 11px;text-align:left;background:linear-gradient(100deg,#172d60,#432680)}.feature.shop{border-color:#c262ff;background:linear-gradient(100deg,#351869,#81298e)}.feature.explore{border-color:#47efb2;background:linear-gradient(100deg,#074a57,#147b63)}.feature>span{height:38px;border-radius:11px;display:grid;place-items:center;color:#ffe16c;background:rgba(255,255,255,.08)}.feature strong{display:grid;font-size:12px}.feature small{font-size:8px;color:#c5dcea;margin-top:3px}.feature>b{font-size:21px}
+.brand{position:fixed;left:22px;bottom:91px;width:225px;padding:10px 12px 11px 48px;background:linear-gradient(105deg,rgba(20,90,165,.88),rgba(38,111,188,.25),transparent);clip-path:polygon(0 0,86% 0,100% 50%,86% 100%,0 100%);display:grid}.brand>span{position:absolute;left:12px;top:12px;color:#8ceeff}.brand strong{font-size:15px}.brand small{font-size:9px;color:#6de9ff;font-weight:900}.brand em{font-size:6px;font-style:normal;color:#bad7e9;letter-spacing:.08em}
+.dock{position:fixed;left:16px;bottom:14px;display:flex;gap:8px}.dock button{min-width:72px;height:66px;border-radius:16px;border:2px solid #42dcff;background:linear-gradient(145deg,#06224a,#0b668f);display:grid;place-items:center;padding:5px 8px;position:relative}.dock button:nth-child(2){border-color:#bb68ff;background:linear-gradient(145deg,#2c145b,#743196)}.dock button:nth-child(3){border-color:#51ecaa;background:linear-gradient(145deg,#073f43,#147d5d)}.dock span{height:27px;color:#a0efff}.dock strong{font-size:10px}.dock kbd{position:absolute;right:5px;bottom:4px;font-size:7px}
+.chat{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);width:min(380px,calc(100vw - 590px));height:46px;border:2px solid #44d0ff;border-radius:17px;background:rgba(6,27,55,.94);display:grid;grid-template-columns:25px 1fr 18px;align-items:center;padding:0 12px;text-align:left}.chat span{color:#76eaff}.chat em{font-style:normal;color:#afc6d7;font-size:10px}.move{position:fixed;right:20px;bottom:45px;display:flex;gap:10px}.move div{width:72px;height:72px;border-radius:50%;border:2px solid #4cd9ff;background:radial-gradient(circle at 35% 25%,#1c5488,#05162f);display:grid;place-items:center;padding:6px}.move span{height:28px}.move strong{font-size:9px}.move kbd{font-size:7px;background:#07172a;border-radius:4px;padding:2px 4px}
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 30px));min-height:210px;border-radius:22px;padding:20px;pointer-events:auto}.modal>button{position:absolute;right:12px;top:12px;width:32px;height:32px;border-radius:9px;border:1px solid #5fcde9;background:#0c4669}.modal small{color:#68e8ff;font-size:8px;font-weight:900;letter-spacing:.15em}.modal h2{margin:4px 0 14px;font-size:22px}.guide{display:grid;grid-template-columns:1fr 1fr;gap:8px}.guide span{padding:8px;border:1px solid rgba(89,210,245,.22);border-radius:9px;background:rgba(30,102,137,.13);font-size:10px}.guide kbd{color:#86edff;margin-right:7px}
+@media(max-width:900px){.prof{width:250px}.missions,.features{width:236px}.brand,.move{display:none}.chat{left:auto;right:12px;transform:none;width:270px}.dock button{min-width:62px}}@media(max-width:620px){.missions,.features{display:none}.prof{width:200px}.pc span{display:none}.wallet{min-width:100px}.rail{top:auto;bottom:78px;grid-template-columns:repeat(5,1fr)}.rail button{width:47px;height:45px}.rail strong,.rail kbd,.chat{display:none}}
+`;
+
+const nav=[['map','map','Mapa','M'],['social','users','Social','P'],['daily','daily','Daily','D'],['shop','shop','Loja','L'],['guide','compass','Guia','G']];
+
+export default function JarvisPremiumHud(){
+  const {state,setState}=useContext(AppContext);
+  const identity=useContext(JarvisIdentityContext);
+  const [panel,setPanel]=useState(null);
+  const chatOpen=state.openedPanel==='ChatPanel';
+  const name=identity?.profile?.display_name||identity?.user?.display_name||identity?.user?.username||'Jogador';
+  const username=identity?.user?.username||'jarvis';
+  const avatar=identity?.profile?.avatar_url||identity?.user?.avatar_url||'';
+  const coins=new Intl.NumberFormat('pt-BR').format(Number(identity?.wallet?.balance)||0);
+  const chat=()=>{setPanel(null);setState({openedPanel:chatOpen?null:'ChatPanel'});};
+  const open=id=>id==='social'?chat():setPanel(panel===id?null:id);
+  const title={map:'Mapa da cidade',daily:'Daily Jarvis',shop:'Loja Jarvis',guide:'Como jogar',events:'Eventos Jarvis',settings:'Configuracoes'}[panel];
+
+  return <nav className="jh" aria-label="HUD Jarvis World"><style>{css}</style>
+    <section className="prof jp"><div className="av">{avatar?<img src={avatar} alt=""/>:name.slice(0,1).toUpperCase()}</div><div className="pc"><strong>{name}</strong><span>@{username}</span><em>JARVIS CITY · SOCIAL</em></div></section>
+    <section className="top"><div className="wallet"><span className="coin"><I name="coin" size={25}/></span><strong>{coins}</strong><small>JC</small></div><button onClick={chat} aria-label="Social"><I name="users"/></button><button onClick={()=>open('events')} aria-label="Eventos"><I name="event"/></button><button onClick={()=>open('settings')} aria-label="Configuracoes"><I name="gear"/></button></section>
+    <section className="rail">{nav.map(([id,icon,label,key])=><button key={id} className={panel===id?'on':''} onClick={()=>open(id)}><span><I name={icon} size={23}/></span><strong>{label}</strong><kbd>{key}</kbd></button>)}</section>
+    <section className="missions jp"><header><span><I name="compass" size={20}/></span><strong>ATIVIDADES SOCIAIS</strong></header><p><i className="ck ok"/><span>Explore a Jarvis Plaza</span><b>ATIVO</b></p><p><i className="ck"/><span>Converse com outros jogadores</span><b>CHAT</b></p><p><i className="ck"/><span>Descubra os distritos da cidade</span><b>MAPA</b></p></section>
+    <section className="features"><button className="feature" onClick={()=>open('events')}><span><I name="event" size={28}/></span><strong>EVENTOS<small>Temporadas e encontros</small></strong><b>›</b></button><button className="feature shop" onClick={()=>open('shop')}><span><I name="shop" size={28}/></span><strong>LOJA<small>Itens, skins e novidades</small></strong><b>›</b></button><button className="feature explore" onClick={()=>open('map')}><span><I name="compass" size={28}/></span><strong>EXPLORAR<small>Landmarks e distritos</small></strong><b>›</b></button></section>
+    <section className="brand"><span><I name="crown" size={30}/></span><strong>JARVIS WORLD</strong><small>JARVIS CITY</small><em>JOGUE · EXPLORE · FACA AMIGOS</em></section>
+    <section className="dock"><button onClick={chat}><span><I name="chat" size={25}/></span><strong>Chat</strong><kbd>T</kbd></button><button onClick={()=>window.dispatchEvent(new Event('jarvis-open-emotes'))}><span><I name="smile" size={25}/></span><strong>Emotes</strong><kbd>Q</kbd></button><button onClick={()=>open('guide')}><span><I name="map" size={25}/></span><strong>Guia</strong><kbd>G</kbd></button></section>
+    <button className="chat" onClick={chat}><span><I name="chat" size={18}/></span><em>Digite uma mensagem...</em><b>›</b></button>
+    <section className="move"><div><span><I name="run" size={30}/></span><strong>Correr</strong><kbd>SHIFT</kbd></div><div><span><I name="jump" size={30}/></span><strong>Pular</strong><kbd>ESPACO</kbd></div></section>
+    {panel&&<section className="modal jp"><button onClick={()=>setPanel(null)}>×</button><small>JARVIS WORLD</small><h2>{title}</h2>{panel==='guide'?<div className="guide"><span><kbd>WASD</kbd>Mover</span><span><kbd>SHIFT</kbd>Correr</span><span><kbd>ESPACO</kbd>Pular</span><span><kbd>Q</kbd>Emotes</span><span><kbd>ENTER</kbd>Chat</span><span><kbd>'</kbd>Camera</span></div>:<p>Conteudo integrado ao Jarvis World.</p>}</section>}
+  </nav>;
+}
