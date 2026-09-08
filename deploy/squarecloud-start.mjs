@@ -14,7 +14,10 @@ const applyPremiumHudOverride = () => {
   let hudSource = fs.readFileSync(sourceUrl, 'utf8');
   hudSource = hudSource
     .replace("../../.webaverse-runtime/src/components/app", './components/app')
-    .replace("../../.webaverse-runtime/src/jarvis-compat/ActivityShell.jsx", './jarvis-compat/ActivityShell.jsx');
+    .replace("../../.webaverse-runtime/src/jarvis-compat/ActivityShell.jsx", './jarvis-compat/ActivityShell.jsx')
+    .replace("../../.webaverse-runtime/io-manager.js", '../io-manager.js')
+    .replace("../../.webaverse-runtime/game.js", '../game.js')
+    .replace("../../.webaverse-runtime/camera-manager.js", '../camera-manager.js');
   fs.writeFileSync(targetPath, hudSource, 'utf8');
 
   let appSource = fs.readFileSync(appPath, 'utf8');

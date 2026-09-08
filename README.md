@@ -9,6 +9,11 @@ The repository intentionally includes the Jarvis deployment configuration,
 patch queue, and `city-assets/`. It does not vendor the upstream `app/` source
 tree: the bootstrap fetches its recorded revision during deploy.
 
+The runtime-start override also provides a dedicated mobile HUD for Android,
+iPhone and touch-first tablets. It is rendered only after mobile/touch input is
+positively detected and drives the canonical Webaverse movement, sprint, jump
+and camera paths. Desktop keeps its existing keyboard-and-mouse HUD unchanged.
+
 `public.env` only contains the public Discord client ID. Keep all backend
 credentials and private keys in Square Cloud environment configuration, never
 in this repository.
