@@ -1,0 +1,12 @@
+diff --git a/io-manager.js b/io-manager.js
+--- a/io-manager.js
++++ b/io-manager.js
+@@ -771,7 +771,4 @@ ioManager.mousedown = e => {
+-  } else if ((changedButtons & 1) && (e.buttons & 1)) { // left
+-    // Enter camera control without restoring editor gizmos or object menus.
+-    cameraManager.requestPointerLock();
+-  } else {
++  } else {
+     // Transform gizmos and the scene context menu are development-only.
+   }
+   if ((changedButtons & 4) && (e.buttons & 4)) { // middle
