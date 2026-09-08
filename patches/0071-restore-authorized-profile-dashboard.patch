@@ -1,0 +1,8 @@
+diff --git a/src/components/app/App.jsx b/src/components/app/App.jsx
+--- a/src/components/app/App.jsx
++++ b/src/components/app/App.jsx
+@@ -17,3 +17,3 @@
+ import { PlayMode } from '../play-mode';
+-import JarvisSocialDashboard from '../../JarvisSocialDashboardSafe.jsx';
++import JarvisSocialDashboard from '../../JarvisSocialDashboard.jsx';
+ import QuickMenu from '../../QuickMenu.jsx';

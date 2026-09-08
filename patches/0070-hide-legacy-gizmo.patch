@@ -1,0 +1,19 @@
+diff --git a/transform-controls.js b/transform-controls.js
+--- a/transform-controls.js
++++ b/transform-controls.js
+@@ -105,13 +105,8 @@ const transformControls = {
+     }
+   },
+   update() {
+-    const mouseSelectedObject = game.getMouseSelectedObject();
+-    this.transformGizmo.visible = !!mouseSelectedObject && !game.contextMenu;
+-    if (this.transformGizmo.visible) {
+-      this.transformGizmo.position.copy(mouseSelectedObject.position);
+-      this.transformGizmo.quaternion.copy(mouseSelectedObject.quaternion);
+-      this.transformGizmo.scale.copy(mouseSelectedObject.scale);
+-    }
++    this.dragging = false;
++    if (this.transformGizmo) this.transformGizmo.visible = false;
+   },
+ };
+ export default transformControls;
