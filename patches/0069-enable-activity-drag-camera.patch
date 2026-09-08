@@ -1,0 +1,22 @@
+diff --git a/io-manager.js b/io-manager.js
+--- a/io-manager.js
++++ b/io-manager.js
+@@ -701,7 +701,7 @@ ioManager.keyup = e => {
+  /* if (game.weaponWheel) {
+    game.updateWeaponWheel(e);
+  } else { */
+-    if (cameraManager.pointerLockElement) {
++    if (cameraManager.pointerLockElement || (e.buttons & 1)) {
+      cameraManager.handleMouseMove(e);
+    } else {
+      // Pointer movement outside pointer lock never manipulates scene objects.
+@@ -773,9 +773,6 @@ ioManager.mousedown = e => {
+  }
+  if ((changedButtons & 4) && (e.buttons & 4)) { // middle
+    e.preventDefault();
+-    if (!cameraManager.pointerLockElement) {
+-      cameraManager.requestPointerLock();
+-    }
+    // The middle button does not activate targeting in the final game.
+  }
+  lastMouseButtons = e.buttons;
