@@ -1,7 +1,7 @@
 diff --git a/io-manager.js b/io-manager.js
 --- a/io-manager.js
 +++ b/io-manager.js
-@@ -593,10 +593,22 @@ ioManager.keydown = e => {
+@@ -593,10 +593,19 @@ ioManager.keydown = e => {
      } */
      case 74: // J
      case 27: // esc
@@ -10,27 +10,24 @@ diff --git a/io-manager.js b/io-manager.js
        // Development, inventory-hack and construction shortcuts are disabled.
        break;
 +    case 192: { // quote/backquote on Brazilian keyboard layouts
-+      // Jarvis gameplay focus toggle. This key never routes through the legacy
-+      // Webaverse editor: it only captures/releases the mouse for camera look.
++      // Discord Activities can stall on native Pointer Lock. Jarvis uses a
++      // soft camera-focus mode instead: hide the cursor and consume movement.
 +      e.preventDefault();
 +      e.stopPropagation();
-+      if (e.repeat) break;
-+      if (cameraManager.pointerLockElement) {
-+        cameraManager.exitPointerLock();
-+      } else {
-+        void cameraManager.requestPointerLock();
-+      }
++      ioManager.jarvisCameraFocus = !ioManager.jarvisCameraFocus;
++      const renderer = getRenderer();
++      renderer.domElement.style.cursor = ioManager.jarvisCameraFocus ? 'none' : '';
 +      break;
 +    }
    }
  };
  ioManager.keypress = e => {
-@@ -701,7 +713,7 @@ ioManager.mousemove = e => {
+@@ -701,7 +710,7 @@ ioManager.mousemove = e => {
    /* if (game.weaponWheel) {
      game.updateWeaponWheel(e);
    } else { */
 -    if (cameraManager.pointerLockElement || (e.buttons & 1)) {
-+    if (cameraManager.pointerLockElement) {
++    if (cameraManager.pointerLockElement || ioManager.jarvisCameraFocus) {
        cameraManager.handleMouseMove(e);
      } else {
        // Pointer movement outside pointer lock never manipulates scene objects.
