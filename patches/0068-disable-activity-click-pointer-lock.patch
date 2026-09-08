@@ -1,0 +1,15 @@
+diff --git a/io-manager.js b/io-manager.js
+--- a/io-manager.js
++++ b/io-manager.js
+@@ -731,9 +731,7 @@ ioManager.click = e => {
+  } else {
+    // game.setContextMenu(false);
+    
+-    if (!game.hoverEnabled) {
+-      cameraManager.requestPointerLock();
+-    }
++    // Discord Activities must not request pointer lock after a canvas click.
+    
+    /* if (controlsManager.isPossessed()) {
+      cameraManager.requestPointerLock();
+*** End Patch
