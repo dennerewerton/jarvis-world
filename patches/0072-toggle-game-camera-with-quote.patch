@@ -1,0 +1,36 @@
+diff --git a/io-manager.js b/io-manager.js
+--- a/io-manager.js
++++ b/io-manager.js
+@@ -593,9 +593,20 @@ ioManager.keydown = e => {
+     } */
+     case 74: // J
+     case 27: // esc
+     case 72: // H
+-    case 192: // tilde / quote on Brazilian keyboard layouts
+       // Development, inventory-hack and construction shortcuts are disabled.
+       break;
++    case 192: { // quote/backquote on Brazilian keyboard layouts
++      // Jarvis gameplay focus toggle. This key never routes through the legacy
++      // Webaverse editor: it only captures/releases the mouse for camera look.
++      e.preventDefault();
++      e.stopPropagation();
++      if (e.repeat) break;
++      if (cameraManager.pointerLockElement) {
++        cameraManager.exitPointerLock();
++      } else {
++        void cameraManager.requestPointerLock();
++      }
++      break;
++    }
+   }
+ };
+ ioManager.keypress = e => {
+@@ -701,7 +712,7 @@ ioManager.mousemove = e => {
+   /* if (game.weaponWheel) {
+     game.updateWeaponWheel(e);
+   } else { */
+-    if (cameraManager.pointerLockElement || (e.buttons & 1)) {
++    if (cameraManager.pointerLockElement) {
+       cameraManager.handleMouseMove(e);
+     } else {
+       // Pointer movement outside pointer lock never manipulates scene objects.
