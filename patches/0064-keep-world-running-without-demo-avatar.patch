@@ -6,8 +6,8 @@ diff --git a/constants.js b/constants.js
    name: 'Scillia',
    previewUrl: './images/characters/upstreet/small/scillia.png',
 -  avatarUrl: './avatars/scilly_drophunter_v31.7_fuji.vrm',
-+  // This upstream demo asset is absent from the pinned repository.
-+  avatarUrl: null,
++  // Use a bundled fallback so the local player and movement controls initialize.
++  avatarUrl: './avatars/default-male.vrm',
    voice: defaultVoiceEndpoint,
    voicePack: defaultVoicePackName,
    class: 'Drop Hunter',
