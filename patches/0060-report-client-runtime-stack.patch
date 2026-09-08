@@ -7,8 +7,8 @@ diff --git a/index.html b/index.html
    <div id="root"></div>
 -  <script type=module src="/pre.js?jarvis-runtime=66"></script>
 -  <script type=module src="/src/main.jsx?jarvis-runtime=66"></script>
-+  <script type=module src="/pre.js?jarvis-runtime=69"></script>
-+  <script type=module src="/src/main.jsx?jarvis-runtime=69"></script>
++  <script type=module src="/pre.js?jarvis-runtime=70"></script>
++  <script type=module src="/src/main.jsx?jarvis-runtime=70"></script>
  </body>
  
  </html>
@@ -20,7 +20,7 @@ diff --git a/src/main.jsx b/src/main.jsx
  import ReactDOM from 'react-dom';
  
 -import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx?jarvis-runtime=66';
-+import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx?jarvis-runtime=69';
++import {ActivityRuntimeLoading, ActivityShell} from './jarvis-compat/ActivityShell.jsx?jarvis-runtime=70';
  import {installPtBrLocalization} from './jarvis-compat/pt-BR.js';
  
 @@ -12,7 +12,7 @@ const loadWebaverseModule = async () => {
@@ -29,9 +29,9 @@ diff --git a/src/main.jsx b/src/main.jsx
 -    {delay: 0, load: () => import('./components/app/App.jsx?jarvis-retry=0&jarvis-runtime=66')},
 -    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=66')},
 -    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=66')},
-+    {delay: 0, load: () => import('./components/app/App.jsx?jarvis-retry=0&jarvis-runtime=69')},
-+    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=69')},
-+    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=69')},
++    {delay: 0, load: () => import('./components/app/App.jsx?jarvis-retry=0&jarvis-runtime=70')},
++    {delay: 2_000, load: () => import('./components/app/App.jsx?jarvis-retry=1&jarvis-runtime=70')},
++    {delay: 5_000, load: () => import('./components/app/App.jsx?jarvis-retry=2&jarvis-runtime=70')},
    ];
    let lastError;
 @@ -46,7 +46,8 @@ class RuntimeErrorBoundary extends React.Component {
