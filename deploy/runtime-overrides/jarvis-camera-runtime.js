@@ -14,7 +14,6 @@ let runtimePromise = null;
 let runtimeErrorLogged = false;
 let pointerLockErrorLogged = false;
 let desiredFocus = false;
-let lockElement = null;
 
 const SENSITIVITY_STORAGE_KEY = 'jarvis.mouseSensitivity';
 const DEFAULT_SENSITIVITY = 2.0;
@@ -104,7 +103,6 @@ const isLocked = () => !!document.pointerLockElement;
 
 const finishUnlock = () => {
   desiredFocus = false;
-  lockElement = null;
   setCursor('');
   if (runtime) runtime.ioManager.jarvisCameraFocus = false;
 };
@@ -120,7 +118,6 @@ const requestPointerLock = element => {
   }
 
   desiredFocus = true;
-  lockElement = element;
   setCursor('none');
 
   try {
@@ -162,13 +159,18 @@ const releasePointerLock = () => {
   }
 };
 
+const enablePointerLock = () => {
+  if (isLocked() || desiredFocus) return;
+  const rendererCanvas = runtime?.getRenderer?.()?.domElement;
+  requestPointerLock(rendererCanvas || document.body || document.documentElement);
+};
+
 const togglePointerLock = () => {
   if (isLocked() || desiredFocus) {
     releasePointerLock();
-    return;
+  } else {
+    enablePointerLock();
   }
-  const rendererCanvas = runtime?.getRenderer?.()?.domElement;
-  requestPointerLock(rendererCanvas || document.body || document.documentElement);
 };
 
 const isQuoteToggle = event => (
@@ -199,10 +201,8 @@ window.addEventListener('pointerdown', event => {
 }, true);
 
 document.addEventListener('pointerlockchange', () => {
-  const lockedElement = document.pointerLockElement;
-  if (lockedElement) {
+  if (document.pointerLockElement) {
     desiredFocus = true;
-    lockElement = lockedElement;
     setCursor('none');
     void loadRuntime().then(({ioManager}) => {
       ioManager.jarvisCameraFocus = false;
@@ -222,6 +222,12 @@ document.addEventListener('pointerlockerror', () => {
 
 window.addEventListener('mousemove', event => {
   if (!document.pointerLockElement) return;
+
+  // io-manager also listens for pointer-locked mousemove events. Consume the event
+  // here so the canonical Webaverse handler cannot apply a second, full-strength
+  // rotation on top of our CS-scaled delta.
+  event.preventDefault?.();
+  event.stopImmediatePropagation();
 
   const movementX = clamp(Number(event.movementX) || 0, -MAX_MOVEMENT_PER_EVENT, MAX_MOVEMENT_PER_EVENT);
   const movementY = clamp(Number(event.movementY) || 0, -MAX_MOVEMENT_PER_EVENT, MAX_MOVEMENT_PER_EVENT);
@@ -251,8 +257,9 @@ window.jarvisMouseLook = {
   getSensitivity: () => sensitivity,
   setSensitivity,
   getSourceEquivalent: () => sensitivity,
-  enable: togglePointerLock,
+  enable: enablePointerLock,
   disable: releasePointerLock,
+  toggle: togglePointerLock,
   isLocked: () => !!document.pointerLockElement,
 };
 
