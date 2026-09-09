@@ -6,7 +6,7 @@ const source = fs.readFileSync('deploy/runtime-overrides/jarvis-camera-runtime.j
 
 test('embedded Discord Activities never call native Pointer Lock', () => {
   assert.match(source, /const isEmbeddedActivity = \(\) =>/);
-  assert.match(source, /if \(isEmbeddedActivity\(\)\) \{\s*setSoftFocused\(true\);/s);
+  assert.match(source, /if \(isEmbeddedActivity\(\)\) \{\s*setKeyboardFocused\(true\);/s);
   assert.match(source, /requestPointerLock\(\{unadjustedMovement: true\}\)/);
 });
 
@@ -26,16 +26,30 @@ test('mouse deltas use CS-style sensitivity semantics without smoothing or dupli
   assert.match(source, /event\.stopImmediatePropagation\(\)/);
 });
 
-test('safe Activity mode supports focus plus right-drag Pointer Capture', () => {
-  assert.match(source, /setSoftFocused\(true\)/);
+test('quote key restores keyboard-focused camera look inside Discord', () => {
+  assert.match(source, /const isQuoteToggle = event =>/);
+  assert.match(source, /toggleFocus\(\)/);
+  assert.match(source, /setKeyboardFocused\(true\)/);
+  assert.match(source, /const keyboardLook = keyboardFocused/);
+  assert.match(source, /if \(isEmbeddedActivity\(\) && !dragging && !keyboardLook\) return;/);
+});
+
+test('safe Activity mode also supports right-drag Pointer Capture at edges', () => {
   assert.match(source, /setPointerCapture/);
   assert.match(source, /dragPointerId/);
   assert.match(source, /event\.button === 2/);
+  assert.match(source, /releasePointerCapture/);
+});
+
+test('quote focus hides the normal cursor on canvas without a crosshair cursor', () => {
+  assert.match(source, /setCanvasCursor\('none'\)/);
+  assert.doesNotMatch(source, /setCanvasCursor\(['"]crosshair['"]\)/);
+  assert.doesNotMatch(source, /style\.cursor\s*=\s*['"]crosshair['"]/);
 });
 
 test('sensitivity is persistent and exposed for Settings integration', () => {
   assert.match(source, /jarvis\.mouseSensitivity/);
   assert.match(source, /window\.jarvisMouseLook/);
   assert.match(source, /jarvis:set-mouse-sensitivity/);
-  assert.match(source, /isSoftFocused/);
+  assert.match(source, /isKeyboardFocused/);
 });

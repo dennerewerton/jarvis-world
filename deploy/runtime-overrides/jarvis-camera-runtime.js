@@ -1,9 +1,9 @@
 // Jarvis World competitive mouse-look for Discord Activities.
 //
 // Native Pointer Lock can freeze/stall some Discord Activity/Electron iframe builds.
-// Therefore embedded Activities use pointer-captured camera dragging, while normal
-// top-level browser builds may still use native Pointer Lock. Both modes use the
-// same CS/Source-style sensitivity curve and neither mode uses edge steering.
+// Therefore embedded Activities use keyboard soft-focus plus pointer-captured camera
+// dragging, while normal top-level browser builds may still use native Pointer Lock.
+// All modes use the same CS/Source-style sensitivity curve and none use edge steering.
 //
 // IMPORTANT: keep gameplay/runtime singletons out of this module's static import
 // graph. App.jsx imports this file before the React app mounts, so eager imports of
@@ -14,6 +14,7 @@ let runtimeErrorLogged = false;
 let pointerLockErrorLogged = false;
 let desiredFocus = false;
 let softFocused = false;
+let keyboardFocused = false;
 let dragPointerId = null;
 
 const SENSITIVITY_STORAGE_KEY = 'jarvis.mouseSensitivity';
@@ -114,6 +115,11 @@ const setGlobalCursor = value => {
   if (canvas) canvas.style.cursor = value;
 };
 
+const setCanvasCursor = value => {
+  const canvas = getCanvas();
+  if (canvas) canvas.style.cursor = value;
+};
+
 const isLocked = () => !!document.pointerLockElement;
 
 const finishNativeUnlock = () => {
@@ -125,10 +131,25 @@ const finishNativeUnlock = () => {
 const setSoftFocused = value => {
   softFocused = !!value;
   desiredFocus = softFocused;
-  if (!softFocused) dragPointerId = null;
-  // Never replace the mouse with a crosshair/reticle. Outside an active captured
-  // drag the normal system cursor remains visible and HUD controls stay usable.
-  if (dragPointerId === null) setGlobalCursor('');
+  if (!softFocused) {
+    dragPointerId = null;
+    keyboardFocused = false;
+  }
+  if (dragPointerId === null && !keyboardFocused) setGlobalCursor('');
+  if (runtime) runtime.ioManager.jarvisCameraFocus = false;
+};
+
+const setKeyboardFocused = value => {
+  keyboardFocused = !!value;
+  softFocused = keyboardFocused;
+  desiredFocus = keyboardFocused;
+  dragPointerId = null;
+  setGlobalCursor('');
+  if (keyboardFocused) {
+    // Hide the normal cursor only over the 3D canvas. There is deliberately no
+    // crosshair/reticle; HUD and Discord chrome retain their normal cursor.
+    setCanvasCursor('none');
+  }
   if (runtime) runtime.ioManager.jarvisCameraFocus = false;
 };
 
@@ -148,10 +169,10 @@ const applyMouseDelta = (movementX, movementY) => {
 
 const requestPointerLock = element => {
   // Discord Desktop/embedded Activities must never call native Pointer Lock because
-  // Electron builds can stall the entire Activity. Embedded camera look is handled
-  // by pointer capture while the player holds the secondary mouse button.
+  // Electron builds can stall the entire Activity. Embedded quote focus is handled
+  // by safe soft-focus; edge-safe dragging is handled by Pointer Capture with RMB.
   if (isEmbeddedActivity()) {
-    setSoftFocused(true);
+    setKeyboardFocused(true);
     void loadRuntime();
     return;
   }
@@ -162,7 +183,7 @@ const requestPointerLock = element => {
       pointerLockErrorLogged = true;
       console.warn('[Jarvis World] Pointer Lock is unavailable; using safe soft mouse focus.');
     }
-    setSoftFocused(true);
+    setKeyboardFocused(true);
     return;
   }
 
@@ -176,18 +197,18 @@ const requestPointerLock = element => {
         if (!desiredFocus || isLocked()) return;
         try {
           const fallbackResult = element.requestPointerLock();
-          fallbackResult?.catch?.(() => setSoftFocused(true));
+          fallbackResult?.catch?.(() => setKeyboardFocused(true));
         } catch {
-          setSoftFocused(true);
+          setKeyboardFocused(true);
         }
       });
     }
   } catch {
     try {
       const fallbackResult = element.requestPointerLock();
-      fallbackResult?.catch?.(() => setSoftFocused(true));
+      fallbackResult?.catch?.(() => setKeyboardFocused(true));
     } catch {
-      setSoftFocused(true);
+      setKeyboardFocused(true);
     }
   }
 
@@ -197,6 +218,7 @@ const requestPointerLock = element => {
 const releaseFocus = () => {
   desiredFocus = false;
   softFocused = false;
+  keyboardFocused = false;
   dragPointerId = null;
   setGlobalCursor('');
   if (document.pointerLockElement && document.exitPointerLock) {
@@ -207,12 +229,17 @@ const releaseFocus = () => {
 
 const enableFocus = () => {
   if (isLocked() || softFocused || desiredFocus) return;
+  if (isEmbeddedActivity()) {
+    setKeyboardFocused(true);
+    void loadRuntime();
+    return;
+  }
   const rendererCanvas = getCanvas();
   requestPointerLock(rendererCanvas || document.body || document.documentElement);
 };
 
 const toggleFocus = () => {
-  if (isLocked() || softFocused || desiredFocus) {
+  if (isLocked() || softFocused || keyboardFocused || desiredFocus) {
     releaseFocus();
   } else {
     enableFocus();
@@ -230,7 +257,7 @@ const isQuoteToggle = event => (
 );
 
 window.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && (softFocused || dragPointerId !== null)) {
+  if (event.key === 'Escape' && (softFocused || keyboardFocused || dragPointerId !== null)) {
     event.preventDefault();
     releaseFocus();
     return;
@@ -253,13 +280,12 @@ window.addEventListener('pointerdown', event => {
     return;
   }
 
-  // Discord-safe camera capture. Holding the secondary mouse button captures the
-  // pointer to the WebGL canvas, hides the system cursor during the drag, and keeps
-  // delivering relative deltas even after the physical pointer crosses the canvas
-  // edge. Pointer Capture is released automatically on button-up and does not invoke
-  // the native Pointer Lock path that freezes Discord Desktop.
+  // Discord-safe edge capture. Holding RMB captures the pointer to the WebGL canvas,
+  // hides the system cursor during the drag, and keeps relative deltas arriving after
+  // crossing the visible canvas edge. This does not invoke native Pointer Lock.
   if (event.button === 2) {
     setSoftFocused(true);
+    keyboardFocused = false;
     dragPointerId = event.pointerId;
     try {
       target.setPointerCapture?.(event.pointerId);
@@ -301,11 +327,12 @@ document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement) {
     desiredFocus = true;
     softFocused = false;
+    keyboardFocused = false;
     setGlobalCursor('none');
     void loadRuntime().then(({ioManager}) => {
       ioManager.jarvisCameraFocus = false;
     }).catch(() => {});
-  } else if (!softFocused) {
+  } else if (!softFocused && !keyboardFocused) {
     finishNativeUnlock();
   }
 });
@@ -313,9 +340,9 @@ document.addEventListener('pointerlockchange', () => {
 document.addEventListener('pointerlockerror', () => {
   if (!pointerLockErrorLogged) {
     pointerLockErrorLogged = true;
-    console.warn('[Jarvis World] Pointer Lock request was rejected; falling back to safe soft mouse focus.');
+    console.warn('[Jarvis World] Pointer Lock request was rejected; falling back to safe keyboard mouse focus.');
   }
-  if (!isLocked()) setSoftFocused(true);
+  if (!isLocked()) setKeyboardFocused(true);
 });
 
 window.addEventListener('mousemove', event => {
@@ -326,15 +353,17 @@ window.addEventListener('mousemove', event => {
     return;
   }
 
-  const dragging = dragPointerId !== null;
-  // Embedded Discord mode intentionally has no free-look without pointer capture.
-  // This prevents the native cursor from wandering out of the Activity while camera
-  // look is active. Hold RMB to rotate; release it to restore the normal cursor.
-  if (isEmbeddedActivity() && !dragging) return;
   if (!softFocused || isTextInputFocused()) return;
-
   const canvas = getCanvas();
   if (!canvas) return;
+
+  const dragging = dragPointerId !== null;
+  const keyboardLook = keyboardFocused;
+
+  // Quote focus is restored: while enabled, normal mouse movement over the canvas
+  // rotates the camera. There is no edge steering, so motion stops immediately when
+  // real mouse events stop. RMB drag remains the edge-safe capture mode in Discord.
+  if (isEmbeddedActivity() && !dragging && !keyboardLook) return;
   if (!dragging && event.target !== canvas) return;
 
   event.preventDefault?.();
@@ -359,6 +388,7 @@ window.jarvisMouseLook = {
   toggle: toggleFocus,
   isLocked: () => !!document.pointerLockElement,
   isSoftFocused: () => softFocused,
+  isKeyboardFocused: () => keyboardFocused,
   isDragCaptured: () => dragPointerId !== null,
   isEmbeddedActivity,
 };
@@ -371,4 +401,4 @@ window.addEventListener('pointermove', () => {
   void loadRuntime();
 }, {once: true, passive: true});
 
-console.log(`[Jarvis World] Activity-safe competitive mouse runtime loaded (CS-style sensitivity ${sensitivity.toFixed(2)}, embedded=${isEmbeddedActivity()}, pointer-capture look, no crosshair, no edge steering).`);
+console.log(`[Jarvis World] Activity-safe competitive mouse runtime loaded (CS-style sensitivity ${sensitivity.toFixed(2)}, embedded=${isEmbeddedActivity()}, quote focus + RMB capture, no crosshair, no edge steering).`);
