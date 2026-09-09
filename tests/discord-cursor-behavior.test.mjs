@@ -4,28 +4,22 @@ import test from 'node:test';
 
 const source = fs.readFileSync('deploy/runtime-overrides/jarvis-camera-runtime.js', 'utf8');
 
-test('Discord embedded mode never shows a crosshair cursor', () => {
-  assert.doesNotMatch(source, /setCanvasCursor\(['"]crosshair['"]\)/);
-  assert.doesNotMatch(source, /style\.cursor\s*=\s*['"]crosshair['"]/);
-  assert.match(source, /no crosshair/);
+test('camera bridge never renders a crosshair or custom cursor', () => {
+  assert.doesNotMatch(source, /crosshair/);
+  assert.doesNotMatch(source, /style\.cursor/);
+  assert.doesNotMatch(source, /setCanvasCursor/);
+  assert.doesNotMatch(source, /setGlobalCursor/);
 });
 
-test('embedded Activity camera control is drag-captured instead of free edge look', () => {
-  assert.match(source, /if \(event\.button === 2\)/);
-  assert.match(source, /setPointerCapture\?\.\(event\.pointerId\)/);
-  assert.match(source, /dragPointerId !== null/);
-  assert.match(source, /if \(isEmbeddedActivity\(\) && !dragging\) return;/);
+test('cursor confinement is owned by canonical native Pointer Lock', () => {
+  assert.match(source, /cameraManager\.requestPointerLock\(\)/);
+  assert.match(source, /cameraManager\.exitPointerLock\(\)/);
+  assert.match(source, /cameraManager\?\.pointerLockElement/);
 });
 
-test('cursor is hidden only while captured camera drag is active', () => {
-  assert.match(source, /setGlobalCursor\('none'\)/);
-  assert.match(source, /setGlobalCursor\(''\)/);
-  assert.match(source, /releasePointerCapture/);
-});
-
-test('edge steering and autonomous rotation stay removed', () => {
+test('no pointer-capture or edge-steering fallback remains', () => {
+  assert.doesNotMatch(source, /setPointerCapture/);
+  assert.doesNotMatch(source, /releasePointerCapture/);
   assert.doesNotMatch(source, /\bedgeFactor\b/);
-  assert.doesNotMatch(source, /\bedgeX\b/);
-  assert.doesNotMatch(source, /\bedgeY\b/);
   assert.doesNotMatch(source, /requestAnimationFrame\(tick\)/);
 });
