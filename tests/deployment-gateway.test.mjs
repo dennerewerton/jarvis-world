@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   isStandalonePath,
   loadGatewayConfig,
+  parseAvatarProxyTarget,
   secureResponseHeaders,
   selectUpstream,
 } from '../deploy/https-gateway.mjs';
@@ -41,6 +42,26 @@ test('standalone bypass paths are blocked at the public gateway', () => {
   assert.equal(isStandalonePath('/%73tandalone%2Ehtml'), true);
   assert.equal(isStandalonePath('/STANDALONE'), true);
   assert.equal(isStandalonePath('/standalone.css'), false);
+});
+
+test('avatar proxy accepts only bounded Discord CDN image URLs', () => {
+  assert.equal(
+    parseAvatarProxyTarget('/__jarvis/avatar?url=https%3A%2F%2Fcdn.discordapp.com%2Favatars%2F42%2Fa_hash.png%3Fsize%3D4096')?.href,
+    'https://cdn.discordapp.com/avatars/42/a_hash.png?size=128',
+  );
+  assert.equal(
+    parseAvatarProxyTarget('/__jarvis/avatar?url=https%3A%2F%2Fcdn.discordapp.com%2Fembed%2Favatars%2F3.png')?.href,
+    'https://cdn.discordapp.com/embed/avatars/3.png?size=128',
+  );
+  for (const target of [
+    'http://cdn.discordapp.com/avatars/42/hash.png',
+    'https://example.com/avatars/42/hash.png',
+    'https://cdn.discordapp.com/attachments/42/file.png',
+    'https://cdn.discordapp.com:444/avatars/42/hash.png',
+    'https://user@cdn.discordapp.com/avatars/42/hash.png',
+  ]) {
+    assert.equal(parseAvatarProxyTarget(`/__jarvis/avatar?url=${encodeURIComponent(target)}`), null);
+  }
 });
 
 test('gateway fails closed without TLS unless local HTTP is explicit', () => {
@@ -123,14 +144,15 @@ test('public smoke recognizes the Discord proxy CSP rewrite', () => {
 });
 
 test('Square Cloud bootstrap exposes only the public Discord client id', () => {
-  const deployRoot = 'webaverse/deploy/squarecloud-bootstrap';
-  const config = fs.readFileSync('webaverse/squarecloud.app', 'utf8');
+  const repositoryRoot = fs.existsSync('webaverse/squarecloud.app') ? 'webaverse' : '.';
+  const deployRoot = `${repositoryRoot}/deploy/squarecloud-bootstrap`;
+  const config = fs.readFileSync(`${repositoryRoot}/squarecloud.app`, 'utf8');
   const environment = fs.readFileSync(`${deployRoot}/public.env`, 'utf8');
   const bootstrap = fs.readFileSync(`${deployRoot}/bootstrap.mjs`, 'utf8');
-  const buildScript = fs.readFileSync('webaverse/scripts/build-squarecloud-bootstrap.ps1', 'utf8');
-  const deployPackage = JSON.parse(fs.readFileSync('webaverse/package.json', 'utf8'));
+  const buildScript = fs.readFileSync(`${repositoryRoot}/scripts/build-squarecloud-bootstrap.ps1`, 'utf8');
+  const deployPackage = JSON.parse(fs.readFileSync(`${repositoryRoot}/package.json`, 'utf8'));
   assert.match(config, /MEMORY=1536/);
-  assert.match(config, /START=node deploy\/squarecloud-bootstrap\/bootstrap\.mjs/);
+  assert.match(config, /START=node deploy\/squarecloud-bootstrap\/bootstrap(?:97)?\.mjs/);
   assert.match(environment, /^VITE_DISCORD_CLIENT_ID=\d+\s*$/);
   assert.doesNotMatch(`${config}\n${environment}`, /CLIENT_SECRET|SESSION_SECRET|BOT_TOKEN/);
   assert.match(bootstrap, /--ignore-space-change/);
@@ -144,7 +166,7 @@ test('Square Cloud bootstrap exposes only the public Discord client id', () => {
   assert.match(buildScript, /cosmetic-assets package\.json squarecloud\.app \.env/);
   assert.doesNotMatch(bootstrap, /dennerewerton|jarvis-bot\.git/);
   assert.equal(
-    fs.existsSync('webaverse/patches/totum/0001-vite2-html-comment-compat.patch'),
+    fs.existsSync(`${repositoryRoot}/patches/totum/0001-vite2-html-comment-compat.patch`),
     true,
   );
 });

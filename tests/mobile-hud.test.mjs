@@ -62,6 +62,14 @@ test('HUD menus render real content instead of the temporary integration placeho
   assert.match(hud, /\['auto', 'Auto'\].*\['low', 'Baixo'\].*\['medium', 'Médio'\].*\['high', 'Alto'\]/);
 });
 
+test('profile avatar uses the same-origin Discord proxy and a visible fallback', () => {
+  assert.match(hud, /const avatarProxySource = value =>/);
+  assert.match(hud, /\/__jarvis\/avatar\?url=/);
+  assert.match(hud, /onError=\{\(\) => setFailed\(true\)\}/);
+  assert.match(hud, /className="avatar-fallback"/);
+  assert.match(hud, /<ProfileAvatar url=\{avatar\} name=\{name\}\/\>/);
+});
+
 test('menu action proxy keeps mutations local to canonical game runtime', () => {
   assert.match(launcher, /QUALITY_STORAGE_KEY = 'jarvis-world-graphics-quality'/);
   assert.match(launcher, /cityApp\.setComponent\('cityQuality', quality\)/);

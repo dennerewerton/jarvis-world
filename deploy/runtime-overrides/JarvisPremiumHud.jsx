@@ -27,6 +27,26 @@ const I = ({name, size = 24}) => {
   return <svg {...p}>{d[name] || d.compass}</svg>;
 };
 
+const avatarProxySource = value => {
+  if (!value || typeof window === 'undefined') return '';
+  try {
+    const url = new URL(String(value), window.location.href);
+    if (url.origin === window.location.origin) return url.href;
+    if (url.protocol === 'https:' && (url.hostname === 'cdn.discordapp.com' || url.hostname === 'media.discordapp.net')) {
+      return `/__jarvis/avatar?url=${encodeURIComponent(url.href)}`;
+    }
+  } catch {}
+  return '';
+};
+
+const ProfileAvatar = ({url, name}) => {
+  const source = avatarProxySource(url);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [source]);
+  if (!source || failed) return <span className="avatar-fallback">{name.trim().slice(0, 1).toUpperCase() || 'J'}</span>;
+  return <img src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailed(true)}/>;
+};
+
 const css = `
 .jh{position:fixed;inset:0;z-index:1000;pointer-events:none;color:#f7fdff;font-family:Inter,Muli,system-ui,sans-serif;text-shadow:0 1px 2px #00152b}.jh *{box-sizing:border-box}.jh button{pointer-events:auto;color:inherit;font:inherit;cursor:pointer}.jh svg{display:block}
 .jp{background:linear-gradient(135deg,rgba(5,22,50,.96),rgba(8,72,116,.91));border:2px solid rgba(68,221,255,.84);box-shadow:0 12px 28px rgba(0,0,0,.4),inset 0 0 22px rgba(61,216,255,.1)}
@@ -264,7 +284,7 @@ const MobileHud = ({identity, chat, open, panel, setPanel, remote, quality, oper
   const avatar = identity?.profile?.avatar_url || identity?.user?.avatar_url || '';
   const coins = new Intl.NumberFormat('pt-BR').format(Number(identity?.wallet?.balance) || 0);
   return <nav className="jm" aria-label="HUD mobile do Jarvis World"><style>{css}</style>
-    <section className="jm-profile jm-surface"><div className="jm-avatar">{avatar ? <img src={avatar} alt=""/> : name.slice(0, 1).toUpperCase()}</div><div className="jm-profile-copy"><strong>{name}</strong><span>@{username}</span><em>● JARVIS CITY · MOBILE</em></div></section>
+    <section className="jm-profile jm-surface"><div className="jm-avatar"><ProfileAvatar url={avatar} name={name}/></div><div className="jm-profile-copy"><strong>{name}</strong><span>@{username}</span><em>● JARVIS CITY · MOBILE</em></div></section>
     <section className="jm-wallet jm-surface" aria-label={`${coins} Jarvis Coins`}><span className="coin"><I name="coin" size={21}/></span><strong>{coins}</strong><small>JC</small></section>
     <section className="jm-quick" aria-label="Menu rápido">{mobileNav.map(([id, icon, label]) => <button type="button" key={id} className={panel === id ? 'on' : ''} onClick={() => open(id)} aria-label={label} aria-pressed={panel === id}><I name={icon} size={21}/></button>)}</section>
     <MobileLookZone/><MobileJoystick/><MobileActions/>
@@ -279,7 +299,7 @@ const DesktopHud = ({identity, chat, open, panel, setPanel, remote, quality, ope
   const avatar = identity?.profile?.avatar_url || identity?.user?.avatar_url || '';
   const coins = new Intl.NumberFormat('pt-BR').format(Number(identity?.wallet?.balance) || 0);
   return <nav className="jh" aria-label="HUD Jarvis World"><style>{css}</style>
-    <section className="prof jp"><div className="av">{avatar ? <img src={avatar} alt=""/> : name.slice(0, 1).toUpperCase()}</div><div className="pc"><strong>{name}</strong><span>@{username}</span><em>JARVIS CITY · SOCIAL</em></div></section>
+    <section className="prof jp"><div className="av"><ProfileAvatar url={avatar} name={name}/></div><div className="pc"><strong>{name}</strong><span>@{username}</span><em>JARVIS CITY · SOCIAL</em></div></section>
     <section className="top"><div className="wallet"><span className="coin"><I name="coin" size={25}/></span><strong>{coins}</strong><small>JC</small></div><button onClick={chat} aria-label="Social"><I name="users"/></button><button onClick={() => open('events')} aria-label="Eventos"><I name="event"/></button><button onClick={() => open('settings')} aria-label="Configurações"><I name="gear"/></button></section>
     <section className="rail">{nav.map(([id, icon, label, key]) => <button key={id} className={panel === id ? 'on' : ''} onClick={() => open(id)}><span><I name={icon} size={23}/></span><strong>{label}</strong><kbd>{key}</kbd></button>)}</section>
     <section className="missions jp"><header><span><I name="compass" size={20}/></span><strong>ATIVIDADES SOCIAIS</strong></header><p><i className="ck ok"/><span>Explore a Jarvis Plaza</span><b>ATIVO</b></p><p><i className="ck"/><span>Converse com outros jogadores</span><b>CHAT</b></p><p><i className="ck"/><span>Descubra os distritos da cidade</span><b>MAPA</b></p></section>

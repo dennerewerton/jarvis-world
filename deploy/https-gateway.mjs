@@ -50,6 +50,32 @@ const decodePathname = pathname => {
   }
 };
 
+const DISCORD_AVATAR_HOSTS = new Set(['cdn.discordapp.com', 'media.discordapp.net']);
+const DISCORD_AVATAR_PATH = /^\/(?:avatars\/\d+\/[A-Za-z0-9_]+\.(?:png|webp|jpe?g|gif)|embed\/avatars\/\d+\.(?:png|webp))$/i;
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+
+export const parseAvatarProxyTarget = requestUrl => {
+  let request;
+  let target;
+  try {
+    request = new URL(requestUrl, 'https://gateway.local');
+    if (request.pathname !== '/__jarvis/avatar') return null;
+    const rawTarget = request.searchParams.get('url') || '';
+    if (!rawTarget || rawTarget.length > 1_000) return null;
+    target = new URL(rawTarget);
+  } catch {
+    return null;
+  }
+  if (
+    target.protocol !== 'https:' || target.port || target.username || target.password ||
+    !DISCORD_AVATAR_HOSTS.has(target.hostname) || !DISCORD_AVATAR_PATH.test(target.pathname)
+  ) return null;
+  target.hash = '';
+  target.search = '';
+  target.searchParams.set('size', '128');
+  return target;
+};
+
 export const selectUpstream = pathname => {
   const decoded = decodePathname(pathname);
   return decoded === '/worlds' || decoded.startsWith('/worlds/') ? 'realtime' : 'runtime';
@@ -134,6 +160,56 @@ const sendGatewayError = (response, statusCode, message, {externalTls}) => {
   response.end(message);
 };
 
+const proxyDiscordAvatar = (target, response, config) => {
+  let finished = false;
+  const fail = (status, message) => {
+    if (finished) return;
+    finished = true;
+    sendGatewayError(response, status, message, config);
+  };
+  const avatarRequest = https.get(target, {
+    headers: {
+      accept: 'image/avif,image/webp,image/png,image/*',
+      'user-agent': 'Jarvis-World-Activity/1.0',
+    },
+  }, avatarResponse => {
+    const contentType = String(avatarResponse.headers['content-type'] || '').split(';', 1)[0].trim().toLowerCase();
+    const contentLength = Number.parseInt(avatarResponse.headers['content-length'] || '0', 10);
+    if (
+      avatarResponse.statusCode !== 200 || !contentType.startsWith('image/') ||
+      (Number.isFinite(contentLength) && contentLength > MAX_AVATAR_BYTES)
+    ) {
+      avatarResponse.resume();
+      fail(502, 'avatar unavailable');
+      return;
+    }
+    const chunks = [];
+    let size = 0;
+    avatarResponse.on('data', chunk => {
+      size += chunk.length;
+      if (size > MAX_AVATAR_BYTES) {
+        avatarResponse.destroy();
+        fail(502, 'avatar too large');
+      } else {
+        chunks.push(chunk);
+      }
+    });
+    avatarResponse.on('end', () => {
+      if (finished) return;
+      finished = true;
+      const body = Buffer.concat(chunks);
+      response.writeHead(200, secureResponseHeaders({
+        'content-type': contentType,
+        'content-length': String(body.length),
+      }, {tls: config.externalTls}));
+      response.end(body);
+    });
+    avatarResponse.on('error', () => fail(502, 'avatar unavailable'));
+  });
+  avatarRequest.setTimeout(6_000, () => avatarRequest.destroy(new Error('avatar timeout')));
+  avatarRequest.on('error', () => fail(502, 'avatar unavailable'));
+};
+
 export const createGateway = config => {
   const targets = {
     runtime: {host: config.runtimeHost, port: config.runtimePort},
@@ -150,6 +226,19 @@ export const createGateway = config => {
     }
     if (isStandalonePath(pathname)) {
       sendGatewayError(response, 404, 'not found', config);
+      return;
+    }
+    if (pathname === '/__jarvis/avatar') {
+      if (request.method !== 'GET') {
+        sendGatewayError(response, 405, 'method not allowed', config);
+        return;
+      }
+      const target = parseAvatarProxyTarget(request.url);
+      if (!target) {
+        sendGatewayError(response, 400, 'invalid avatar url', config);
+        return;
+      }
+      proxyDiscordAvatar(target, response, config);
       return;
     }
     if (pathname === '/__jarvis/client-error') {
