@@ -6,6 +6,44 @@ import {createGateway, loadGatewayConfig} from './https-gateway.mjs';
 
 const runtimeRoot = process.cwd();
 
+const stabilizeWorldStartup = () => {
+  const universePath = path.join(runtimeRoot, 'universe.js');
+  const appPath = path.join(runtimeRoot, 'src', 'components', 'app', 'App.jsx');
+
+  let universeSource = fs.readFileSync(universePath, 'utf8');
+  const multiplayerWorldSpec = 'return {src: JARVIS_SHARED_SCENE, room: JARVIS_SHARED_ROOM};';
+  const localWorldSpec = 'return {src: JARVIS_SHARED_SCENE};';
+
+  // The shared-room path does not create the city locally. It waits for WSRTC to
+  // populate world.appManager after the websocket opens. When Discord/Square does
+  // not complete that hand-off, React/HUD stays alive over an empty transparent
+  // WebGL canvas. Boot the authored city locally first; multiplayer can be layered
+  // back on only after the room hand-off is made non-destructive.
+  if (universeSource.includes(multiplayerWorldSpec)) {
+    universeSource = universeSource.replace(multiplayerWorldSpec, localWorldSpec);
+  } else if (!universeSource.includes(localWorldSpec)) {
+    throw new Error('Unable to locate the Jarvis shared-world resolver in universe.js');
+  }
+  fs.writeFileSync(universePath, universeSource, 'utf8');
+
+  let appSource = fs.readFileSync(appPath, 'utf8');
+  const oldWorldStartup = `  universe.handleUrlUpdate();\n  await weba.startLoop();`;
+  const newWorldStartup = `  const jarvisWorldLoadPromise = universe.handleUrlUpdate();\n  await weba.startLoop();\n  await jarvisWorldLoadPromise;`;
+
+  // Upstream fire-and-forgets handleUrlUpdate(). That lets a scene-load rejection
+  // escape the existing _startApp(...).catch(...) diagnostics while the HUD keeps
+  // rendering. Preserve the parallel render-loop start, but await the world promise
+  // before avatar binding so failures are reported instead of becoming a white city.
+  if (appSource.includes(oldWorldStartup)) {
+    appSource = appSource.replace(oldWorldStartup, newWorldStartup);
+  } else if (!appSource.includes('await jarvisWorldLoadPromise;')) {
+    throw new Error('Unable to locate Webaverse world startup sequence in App.jsx');
+  }
+  fs.writeFileSync(appPath, appSource, 'utf8');
+
+  console.log('[Jarvis World] deterministic local city startup installed; world-load failures now propagate to Activity diagnostics.');
+};
+
 const installMobileRuntimeProxies = () => {
   // JarvisPremiumHud is imported by App.jsx during the UI bootstrap. Importing the
   // full io/game/camera singleton graph from that HUD at module-evaluation time can
@@ -220,6 +258,7 @@ const installCameraRuntime = () => {
   console.log('[Jarvis World] standalone edge-steering camera runtime installed in lazy singleton mode.');
 };
 
+stabilizeWorldStartup();
 installMobileRuntimeProxies();
 applyPremiumHudOverride();
 applyAvatarAndGizmoOverrides();
