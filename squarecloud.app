@@ -5,4 +5,4 @@ VERSION=recommended
 MEMORY=1536
 AUTORESTART=true
 SUBDOMAIN=jarvis-world-webaverse
-START=node deploy/squarecloud-bootstrap/bootstrap95.mjs
+START=node deploy/squarecloud-bootstrap/bootstrap96.mjs
