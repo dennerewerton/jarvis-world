@@ -1,17 +1,59 @@
-// Jarvis World camera focus for Discord Activities.
-// Native Pointer Lock is intentionally avoided because it can stall the Activity iframe.
+// Jarvis World competitive mouse-look for Discord Activities.
 //
-// IMPORTANT: keep gameplay/runtime singletons out of this module's static import graph.
-// App.jsx imports this file before the React app mounts, so eager imports of renderer,
-// camera-manager or io-manager can re-enter the Webaverse bootstrap graph and leave the
-// HUD alive while the 3D scene never finishes initializing. Runtime dependencies are
-// resolved lazily only after the player actually enables camera focus.
-let focused = false;
-let edgeX = 0;
-let edgeY = 0;
+// The old Activity camera used edge steering because Pointer Lock had previously
+// been disabled. That made the camera continue rotating after the cursor reached
+// the edge of the iframe. This runtime uses FPS-style relative mouse input instead:
+// the pointer is captured, movement is consumed as deltas, and there is no edge
+// acceleration, smoothing or autonomous rotation.
+//
+// IMPORTANT: keep gameplay/runtime singletons out of this module's static import
+// graph. App.jsx imports this file before the React app mounts, so eager imports of
+// renderer/camera-manager/io-manager can re-enter the Webaverse bootstrap graph.
 let runtime = null;
 let runtimePromise = null;
 let runtimeErrorLogged = false;
+let pointerLockErrorLogged = false;
+let desiredFocus = false;
+let lockElement = null;
+
+const SENSITIVITY_STORAGE_KEY = 'jarvis.mouseSensitivity';
+const DEFAULT_SENSITIVITY = 2.0;
+const MIN_SENSITIVITY = 0.1;
+const MAX_SENSITIVITY = 10.0;
+// Source/CS-style yaw and pitch: 0.022 degrees per mouse count at sensitivity 1.
+const SOURCE_DEGREES_PER_COUNT = 0.022;
+// Webaverse camera-manager currently applies 0.18 degrees per movement count.
+const WEBAVERSE_DEGREES_PER_COUNT = 0.18;
+const MAX_MOVEMENT_PER_EVENT = 800;
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const readSensitivity = () => {
+  try {
+    const stored = Number.parseFloat(localStorage.getItem(SENSITIVITY_STORAGE_KEY));
+    if (Number.isFinite(stored)) return clamp(stored, MIN_SENSITIVITY, MAX_SENSITIVITY);
+  } catch {}
+  return DEFAULT_SENSITIVITY;
+};
+
+let sensitivity = readSensitivity();
+
+const setSensitivity = value => {
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) return sensitivity;
+  sensitivity = clamp(parsed, MIN_SENSITIVITY, MAX_SENSITIVITY);
+  try {
+    localStorage.setItem(SENSITIVITY_STORAGE_KEY, String(sensitivity));
+  } catch {}
+  window.dispatchEvent(new CustomEvent('jarvis:mouse-sensitivity-changed', {
+    detail: {sensitivity},
+  }));
+  return sensitivity;
+};
+
+const getSensitivityScale = () => (
+  sensitivity * SOURCE_DEGREES_PER_COUNT / WEBAVERSE_DEGREES_PER_COUNT
+);
 
 const loadRuntime = () => {
   if (runtime) return Promise.resolve(runtime);
@@ -26,12 +68,13 @@ const loadRuntime = () => {
         cameraManager: cameraModule.default,
         getRenderer: rendererModule.getRenderer,
       };
+      runtime.ioManager.jarvisCameraFocus = false;
       return runtime;
     }).catch(error => {
       runtimePromise = null;
       if (!runtimeErrorLogged) {
         runtimeErrorLogged = true;
-        console.error('[Jarvis World] unable to load camera runtime lazily:', error);
+        console.error('[Jarvis World] unable to load competitive mouse runtime lazily:', error);
       }
       throw error;
     });
@@ -53,29 +96,79 @@ const isTextInputFocused = () => {
 const setCursor = value => {
   document.documentElement.style.cursor = value;
   if (document.body) document.body.style.cursor = value;
+  const canvas = runtime?.getRenderer?.()?.domElement;
+  if (canvas) canvas.style.cursor = value;
+};
 
-  if (runtime) {
-    const renderer = runtime.getRenderer?.();
-    if (renderer?.domElement) renderer.domElement.style.cursor = value;
+const isLocked = () => !!document.pointerLockElement;
+
+const finishUnlock = () => {
+  desiredFocus = false;
+  lockElement = null;
+  setCursor('');
+  if (runtime) runtime.ioManager.jarvisCameraFocus = false;
+};
+
+const requestPointerLock = element => {
+  if (!element?.requestPointerLock) {
+    desiredFocus = false;
+    if (!pointerLockErrorLogged) {
+      pointerLockErrorLogged = true;
+      console.warn('[Jarvis World] Pointer Lock is unavailable; FPS mouse capture cannot be enabled in this client.');
+    }
+    return;
+  }
+
+  desiredFocus = true;
+  lockElement = element;
+  setCursor('none');
+
+  try {
+    // Call synchronously from the keyboard/pointer gesture so Chromium preserves
+    // transient user activation inside the Discord iframe.
+    const result = element.requestPointerLock({unadjustedMovement: true});
+    if (result?.catch) {
+      result.catch(() => {
+        // Chromium implementations that do not accept raw-input options can still
+        // support normal Pointer Lock. Retry only while the original focus request
+        // is still active; if that retry is denied we simply leave the camera idle.
+        if (!desiredFocus || isLocked()) return;
+        try {
+          const fallbackResult = element.requestPointerLock();
+          fallbackResult?.catch?.(() => {});
+        } catch {}
+      });
+    }
+  } catch {
+    try {
+      const fallbackResult = element.requestPointerLock();
+      fallbackResult?.catch?.(() => {});
+    } catch {
+      finishUnlock();
+    }
+  }
+
+  // Runtime imports happen only after the native capture request has already been
+  // issued, so they cannot consume the browser's user-activation window.
+  void loadRuntime();
+};
+
+const releasePointerLock = () => {
+  desiredFocus = false;
+  if (document.pointerLockElement && document.exitPointerLock) {
+    document.exitPointerLock();
+  } else {
+    finishUnlock();
   }
 };
 
-const setFocused = value => {
-  focused = !!value;
-  edgeX = 0;
-  edgeY = 0;
-  setCursor(focused ? 'none' : '');
-
-  if (runtime) {
-    // Keep the legacy soft-focus flag disabled. This module owns camera look.
-    runtime.ioManager.jarvisCameraFocus = false;
-  } else if (focused) {
-    void loadRuntime().then(({ioManager, getRenderer}) => {
-      ioManager.jarvisCameraFocus = false;
-      const renderer = getRenderer?.();
-      if (renderer?.domElement) renderer.domElement.style.cursor = 'none';
-    }).catch(() => {});
+const togglePointerLock = () => {
+  if (isLocked() || desiredFocus) {
+    releasePointerLock();
+    return;
   }
+  const rendererCanvas = runtime?.getRenderer?.()?.domElement;
+  requestPointerLock(rendererCanvas || document.body || document.documentElement);
 };
 
 const isQuoteToggle = event => (
@@ -92,58 +185,86 @@ window.addEventListener('keydown', event => {
   if (!isQuoteToggle(event) || event.repeat || isTextInputFocused()) return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  setFocused(!focused);
+  togglePointerLock();
 }, true);
 
+// Clicking directly on the 3D renderer enters normal FPS mouse capture. HUD clicks
+// are not affected because their event target is not the renderer canvas.
+window.addEventListener('pointerdown', event => {
+  if (event.button !== 0 || isTextInputFocused() || isLocked() || desiredFocus) return;
+  const target = event.target;
+  if (target?.tagName === 'CANVAS') {
+    requestPointerLock(target);
+  }
+}, true);
+
+document.addEventListener('pointerlockchange', () => {
+  const lockedElement = document.pointerLockElement;
+  if (lockedElement) {
+    desiredFocus = true;
+    lockElement = lockedElement;
+    setCursor('none');
+    void loadRuntime().then(({ioManager}) => {
+      ioManager.jarvisCameraFocus = false;
+    }).catch(() => {});
+  } else {
+    finishUnlock();
+  }
+});
+
+document.addEventListener('pointerlockerror', () => {
+  if (!pointerLockErrorLogged) {
+    pointerLockErrorLogged = true;
+    console.warn('[Jarvis World] Pointer Lock request was rejected by the Activity host; camera remains stationary instead of edge-steering.');
+  }
+  if (!isLocked()) finishUnlock();
+});
+
 window.addEventListener('mousemove', event => {
-  if (!focused) return;
+  if (!document.pointerLockElement) return;
 
-  void loadRuntime().then(({cameraManager, getRenderer}) => {
-    if (!focused) return;
-    const renderer = getRenderer?.();
-    const canvas = renderer?.domElement;
-    if (!canvas) return;
+  const movementX = clamp(Number(event.movementX) || 0, -MAX_MOVEMENT_PER_EVENT, MAX_MOVEMENT_PER_EVENT);
+  const movementY = clamp(Number(event.movementY) || 0, -MAX_MOVEMENT_PER_EVENT, MAX_MOVEMENT_PER_EVENT);
+  if (!movementX && !movementY) return;
 
-    // Use normal mouse deltas while the pointer is moving inside the Activity.
-    if (event.movementX || event.movementY) {
-      cameraManager.handleMouseMove(event);
-    }
-
-    // When the cursor reaches the edge, remember that direction. If it leaves the
-    // iframe, mousemove events stop, but the animation loop below keeps rotating.
-    const rect = canvas.getBoundingClientRect();
-    const margin = Math.max(42, Math.min(100, Math.min(rect.width, rect.height) * 0.13));
-    edgeX = edgeFactor(event.clientX, rect.left, rect.right, margin);
-    edgeY = edgeFactor(event.clientY, rect.top, rect.bottom, margin);
+  const scale = getSensitivityScale();
+  void loadRuntime().then(({cameraManager}) => {
+    if (!document.pointerLockElement) return;
+    cameraManager.handleMouseMove({
+      movementX: movementX * scale,
+      movementY: movementY * scale,
+    });
   }).catch(() => {});
 }, true);
 
-const edgeFactor = (value, min, max, margin) => {
-  if (value <= min + margin) {
-    return -Math.min(1, Math.max(0, (min + margin - value) / margin));
-  }
-  if (value >= max - margin) {
-    return Math.min(1, Math.max(0, (value - (max - margin)) / margin));
-  }
-  return 0;
-};
-
-const tick = () => {
-  if (focused && runtime && !runtime.cameraManager.pointerLockElement) {
-    if (Math.abs(edgeX) > 0.001 || Math.abs(edgeY) > 0.001) {
-      runtime.cameraManager.handleMouseMove({
-        movementX: edgeX * 12,
-        movementY: edgeY * 9,
-      });
-    }
-  }
-  requestAnimationFrame(tick);
-};
-requestAnimationFrame(tick);
-
-window.addEventListener('blur', () => setFocused(false));
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) setFocused(false);
+window.addEventListener('blur', () => {
+  // Browser/Electron normally releases Pointer Lock on focus loss. Explicitly clear
+  // our state as well so no stale focus can survive an Alt+Tab or Activity close.
+  if (!document.pointerLockElement) finishUnlock();
 });
 
-console.log('[Jarvis World] standalone edge-steering camera runtime loaded (lazy singleton mode).');
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) releasePointerLock();
+});
+
+window.jarvisMouseLook = {
+  getSensitivity: () => sensitivity,
+  setSensitivity,
+  getSourceEquivalent: () => sensitivity,
+  enable: togglePointerLock,
+  disable: releasePointerLock,
+  isLocked: () => !!document.pointerLockElement,
+};
+
+window.addEventListener('jarvis:set-mouse-sensitivity', event => {
+  setSensitivity(event.detail?.sensitivity ?? event.detail);
+});
+
+// Warm the lazy imports after the first harmless pointer movement. This normally
+// makes the camera runtime ready before the player clicks to capture the mouse,
+// without putting those modules back into App.jsx's static bootstrap graph.
+window.addEventListener('pointermove', () => {
+  void loadRuntime();
+}, {once: true, passive: true});
+
+console.log(`[Jarvis World] competitive FPS mouse runtime loaded (CS-style sensitivity ${sensitivity.toFixed(2)}, no edge steering).`);
