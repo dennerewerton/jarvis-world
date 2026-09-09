@@ -6,18 +6,142 @@ import {createGateway, loadGatewayConfig} from './https-gateway.mjs';
 
 const runtimeRoot = process.cwd();
 
+const installMobileRuntimeProxies = () => {
+  // JarvisPremiumHud is imported by App.jsx during the UI bootstrap. Importing the
+  // full io/game/camera singleton graph from that HUD at module-evaluation time can
+  // re-enter Webaverse's player/avatar/renderer dependency chain. Keep the static
+  // HUD graph lightweight and resolve canonical gameplay modules only on first touch.
+  const ioProxyPath = path.join(runtimeRoot, 'jarvis-mobile-io-proxy.js');
+  const gameProxyPath = path.join(runtimeRoot, 'jarvis-mobile-game-proxy.js');
+  const cameraProxyPath = path.join(runtimeRoot, 'jarvis-mobile-camera-proxy.js');
+
+  fs.writeFileSync(ioProxyPath, `let runtime = null;
+let runtimePromise = null;
+const shadowKeys = {up:false,down:false,left:false,right:false,shift:false,space:false};
+const loadRuntime = () => {
+  if (runtime) return Promise.resolve(runtime);
+  if (!runtimePromise) {
+    runtimePromise = import('./io-manager.js').then(module => {
+      runtime = module.default;
+      Object.assign(runtime.keys, shadowKeys);
+      return runtime;
+    }).catch(error => {
+      runtimePromise = null;
+      console.error('[Jarvis World] mobile input runtime failed to load:', error);
+      throw error;
+    });
+  }
+  return runtimePromise;
+};
+const keys = new Proxy(shadowKeys, {
+  get(target, key) {
+    return runtime?.keys?.[key] ?? target[key];
+  },
+  set(target, key, value) {
+    target[key] = value;
+    if (runtime?.keys) {
+      runtime.keys[key] = value;
+    } else {
+      void loadRuntime().then(ioManager => {
+        ioManager.keys[key] = target[key];
+      }).catch(() => {});
+    }
+    return true;
+  },
+});
+export default {keys};
+`, 'utf8');
+
+  fs.writeFileSync(gameProxyPath, `let runtime = null;
+let runtimePromise = null;
+const loadRuntime = () => {
+  if (runtime) return Promise.resolve(runtime);
+  if (!runtimePromise) {
+    runtimePromise = import('./game.js').then(module => {
+      runtime = module.default;
+      return runtime;
+    }).catch(error => {
+      runtimePromise = null;
+      console.error('[Jarvis World] mobile game runtime failed to load:', error);
+      throw error;
+    });
+  }
+  return runtimePromise;
+};
+const invoke = (method, args = []) => {
+  if (runtime && typeof runtime[method] === 'function') return runtime[method](...args);
+  void loadRuntime().then(game => {
+    if (typeof game[method] === 'function') game[method](...args);
+  }).catch(() => {});
+  return undefined;
+};
+export default {
+  isJumping() { return runtime?.isJumping?.() ?? false; },
+  isDoubleJumping() { return runtime?.isDoubleJumping?.() ?? false; },
+  jump(...args) { return invoke('jump', args); },
+  doubleJump(...args) { return invoke('doubleJump', args); },
+};
+`, 'utf8');
+
+  fs.writeFileSync(cameraProxyPath, `let runtime = null;
+let runtimePromise = null;
+const loadRuntime = () => {
+  if (runtime) return Promise.resolve(runtime);
+  if (!runtimePromise) {
+    runtimePromise = import('./camera-manager.js').then(module => {
+      runtime = module.default;
+      return runtime;
+    }).catch(error => {
+      runtimePromise = null;
+      console.error('[Jarvis World] mobile camera runtime failed to load:', error);
+      throw error;
+    });
+  }
+  return runtimePromise;
+};
+export default {
+  handleMouseMove(event) {
+    if (runtime) return runtime.handleMouseMove(event);
+    void loadRuntime().then(cameraManager => cameraManager.handleMouseMove(event)).catch(() => {});
+    return undefined;
+  },
+};
+`, 'utf8');
+
+  console.log('[Jarvis World] installed lazy mobile gameplay runtime proxies.');
+};
+
 const applyPremiumHudOverride = () => {
   const sourceUrl = new URL('./runtime-overrides/JarvisPremiumHud.jsx', import.meta.url);
   const targetPath = path.join(runtimeRoot, 'src', 'JarvisPremiumHud.jsx');
   const appPath = path.join(runtimeRoot, 'src', 'components', 'app', 'App.jsx');
 
   let hudSource = fs.readFileSync(sourceUrl, 'utf8');
-  hudSource = hudSource
-    .replace("../../.webaverse-runtime/src/components/app", './components/app')
-    .replace("../../.webaverse-runtime/src/jarvis-compat/ActivityShell.jsx", './jarvis-compat/ActivityShell.jsx')
-    .replace("../../.webaverse-runtime/io-manager.js", '../io-manager.js')
-    .replace("../../.webaverse-runtime/game.js", '../game.js')
-    .replace("../../.webaverse-runtime/camera-manager.js", '../camera-manager.js');
+  const replacements = [
+    ["../../.webaverse-runtime/src/components/app", './components/app'],
+    ["../../.webaverse-runtime/src/jarvis-compat/ActivityShell.jsx", './jarvis-compat/ActivityShell.jsx'],
+    ["../../.webaverse-runtime/io-manager.js", '../jarvis-mobile-io-proxy.js'],
+    ["../../.webaverse-runtime/game.js", '../jarvis-mobile-game-proxy.js'],
+    ["../../.webaverse-runtime/camera-manager.js", '../jarvis-mobile-camera-proxy.js'],
+  ];
+  for (const [from, to] of replacements) {
+    if (!hudSource.includes(from)) {
+      throw new Error(`Unable to locate Jarvis HUD runtime dependency: ${from}`);
+    }
+    hudSource = hudSource.replace(from, to);
+  }
+
+  // Discord Desktop can expose touch/coarse-pointer media features even when the
+  // actual client is a Windows desktop. Require an explicit mobile/iPad UA signal
+  // so the touch HUD cannot accidentally replace the desktop HUD inside the iframe.
+  const broadMobileGate = 'return touch && (uaMobile || ipad || (coarse && noHover));';
+  const strictMobileGate = 'return touch && (uaMobile || ipad);';
+  if (hudSource.includes(broadMobileGate)) {
+    hudSource = hudSource.replace(broadMobileGate, strictMobileGate);
+  } else if (!hudSource.includes(strictMobileGate)) {
+    throw new Error('Unable to locate Jarvis mobile-device gate.');
+  }
+
   fs.writeFileSync(targetPath, hudSource, 'utf8');
 
   let appSource = fs.readFileSync(appPath, 'utf8');
@@ -35,7 +159,7 @@ const applyPremiumHudOverride = () => {
     throw new Error('Unable to locate Jarvis HUD render in App.jsx');
   }
   fs.writeFileSync(appPath, appSource, 'utf8');
-  console.log('[Jarvis World] premium HUD runtime override installed directly (no git patch).');
+  console.log('[Jarvis World] premium HUD runtime override installed with isolated gameplay imports.');
 };
 
 const applyAvatarAndGizmoOverrides = () => {
@@ -93,9 +217,10 @@ const installCameraRuntime = () => {
     appSource = `${cameraImport}\n${appSource}`;
     fs.writeFileSync(appPath, appSource, 'utf8');
   }
-  console.log('[Jarvis World] standalone edge-steering camera runtime installed.');
+  console.log('[Jarvis World] standalone edge-steering camera runtime installed in lazy singleton mode.');
 };
 
+installMobileRuntimeProxies();
 applyPremiumHudOverride();
 applyAvatarAndGizmoOverrides();
 installCameraRuntime();
