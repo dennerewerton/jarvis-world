@@ -9,8 +9,9 @@ const cameraRuntime = fs.readFileSync('deploy/runtime-overrides/jarvis-camera-ru
 test('mobile HUD is gated by explicit mobile/iPad detection', () => {
   assert.match(hud, /const detectMobile = \(\) =>/);
   assert.match(hud, /navigator\.userAgentData\?\.mobile === true/);
+  assert.match(launcher, /const broadMobileGate = 'return touch && \(uaMobile \|\| ipad \|\| \(coarse && noHover\)\);'/);
   assert.match(launcher, /return touch && \(uaMobile \|\| ipad\);/);
-  assert.doesNotMatch(launcher, /touch && \(uaMobile \|\| ipad \|\| \(coarse && noHover\)\)/);
+  assert.match(launcher, /hudSource = hudSource\.replace\(broadMobileGate, strictMobileGate\)/);
   assert.match(hud, /return mobile \? <MobileHud/);
 });
 
@@ -33,10 +34,10 @@ test('mobile layout provides safe-area and orientation handling', () => {
 });
 
 test('runtime launcher rewrites HUD dependencies to isolated runtime-local proxies', () => {
-  for (const dependency of ['io-manager.js', 'game.js', 'camera-manager.js']) {
+  for (const dependency of ['io-manager.js', 'game.js', 'camera-manager.js', 'jarvis-world-actions-proxy.js']) {
     assert.match(launcher, new RegExp(`\\.webaverse-runtime/${dependency.replace('.', '\\.')}`));
   }
-  for (const proxy of ['jarvis-mobile-io-proxy.js', 'jarvis-mobile-game-proxy.js', 'jarvis-mobile-camera-proxy.js']) {
+  for (const proxy of ['jarvis-mobile-io-proxy.js', 'jarvis-mobile-game-proxy.js', 'jarvis-mobile-camera-proxy.js', 'jarvis-world-actions-proxy.js']) {
     assert.match(launcher, new RegExp(proxy.replace('.', '\\.')));
   }
   assert.match(launcher, /import\('\.\/io-manager\.js'\)/);
@@ -48,8 +49,24 @@ test('standalone camera runtime does not statically import Webaverse singletons'
   assert.doesNotMatch(cameraRuntime, /^import .*io-manager/m);
   assert.doesNotMatch(cameraRuntime, /^import .*camera-manager/m);
   assert.doesNotMatch(cameraRuntime, /^import .*renderer/m);
-  assert.match(cameraRuntime, /import\('\.\/io-manager\.js'\)/);
-  assert.match(cameraRuntime, /import\('\.\/camera-manager\.js'\)/);
-  assert.match(cameraRuntime, /import\('\.\/renderer\.js'\)/);
-  assert.match(cameraRuntime, /lazy singleton mode/);
+  assert.match(cameraRuntime, /canonical synchronous Webaverse Pointer Lock is active/);
+  assert.match(cameraRuntime, /intentionally has no input listeners and no imports/);
+});
+
+test('HUD menus render real content instead of the temporary integration placeholder', () => {
+  assert.doesNotMatch(hud, /Conteúdo integrado ao Jarvis World/);
+  assert.match(hud, /activityApi\.daily\(\)/);
+  assert.match(hud, /activityApi\.shop\(\)/);
+  assert.match(hud, /teleportToLocation\(location\)/);
+  assert.match(hud, /setGraphicsQuality\(nextQuality\)/);
+  assert.match(hud, /\['auto', 'Auto'\].*\['low', 'Baixo'\].*\['medium', 'Médio'\].*\['high', 'Alto'\]/);
+});
+
+test('menu action proxy keeps mutations local to canonical game runtime', () => {
+  assert.match(launcher, /QUALITY_STORAGE_KEY = 'jarvis-world-graphics-quality'/);
+  assert.match(launcher, /cityApp\.setComponent\('cityQuality', quality\)/);
+  assert.match(launcher, /playersManager\.getLocalPlayer\(\)/);
+  assert.match(launcher, /player\.setSpawnPoint\(/);
+  assert.match(launcher, /import\('\.\/players-manager\.js'\)/);
+  assert.match(launcher, /import\('\.\/world\.js'\)/);
 });

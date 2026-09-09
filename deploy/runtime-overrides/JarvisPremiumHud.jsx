@@ -1,9 +1,11 @@
 import React, {useContext, useEffect, useRef, useState} from 'react';
 import {AppContext} from '../../.webaverse-runtime/src/components/app';
+import {activityApi} from '../../.webaverse-runtime/src/jarvis-compat/activity-api.mjs';
 import {JarvisIdentityContext} from '../../.webaverse-runtime/src/jarvis-compat/ActivityShell.jsx';
 import ioManager from '../../.webaverse-runtime/io-manager.js';
 import game from '../../.webaverse-runtime/game.js';
 import cameraManager from '../../.webaverse-runtime/camera-manager.js';
+import {getSavedGraphicsQuality, setGraphicsQuality, teleportToLocation} from '../../.webaverse-runtime/jarvis-world-actions-proxy.js';
 
 const I = ({name, size = 24}) => {
   const p = {width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true};
@@ -36,7 +38,8 @@ const css = `
 .brand{position:fixed;left:22px;bottom:91px;width:225px;padding:10px 12px 11px 48px;background:linear-gradient(105deg,rgba(20,90,165,.88),rgba(38,111,188,.25),transparent);clip-path:polygon(0 0,86% 0,100% 50%,86% 100%,0 100%);display:grid}.brand>span{position:absolute;left:12px;top:12px;color:#8ceeff}.brand strong{font-size:15px}.brand small{font-size:9px;color:#6de9ff;font-weight:900}.brand em{font-size:6px;font-style:normal;color:#bad7e9;letter-spacing:.08em}
 .dock{position:fixed;left:16px;bottom:14px;display:flex;gap:8px}.dock button{min-width:72px;height:66px;border-radius:16px;border:2px solid #42dcff;background:linear-gradient(145deg,#06224a,#0b668f);display:grid;place-items:center;padding:5px 8px;position:relative}.dock button:nth-child(2){border-color:#bb68ff;background:linear-gradient(145deg,#2c145b,#743196)}.dock button:nth-child(3){border-color:#51ecaa;background:linear-gradient(145deg,#073f43,#147d5d)}.dock span{height:27px;color:#a0efff}.dock strong{font-size:10px}.dock kbd{position:absolute;right:5px;bottom:4px;font-size:7px}
 .chat{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);width:min(380px,calc(100vw - 590px));height:46px;border:2px solid #44d0ff;border-radius:17px;background:rgba(6,27,55,.94);display:grid;grid-template-columns:25px 1fr 18px;align-items:center;padding:0 12px;text-align:left}.chat span{color:#76eaff}.chat em{font-style:normal;color:#afc6d7;font-size:10px}.move{position:fixed;right:20px;bottom:45px;display:flex;gap:10px}.move div{width:72px;height:72px;border-radius:50%;border:2px solid #4cd9ff;background:radial-gradient(circle at 35% 25%,#1c5488,#05162f);display:grid;place-items:center;padding:6px}.move span{height:28px}.move strong{font-size:9px}.move kbd{font-size:7px;background:#07172a;border-radius:4px;padding:2px 4px}
-.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 30px));min-height:210px;border-radius:22px;padding:20px;pointer-events:auto}.modal>button{position:absolute;right:12px;top:12px;width:32px;height:32px;border-radius:9px;border:1px solid #5fcde9;background:#0c4669}.modal small{color:#68e8ff;font-size:8px;font-weight:900;letter-spacing:.15em}.modal h2{margin:4px 0 14px;font-size:22px}.guide{display:grid;grid-template-columns:1fr 1fr;gap:8px}.guide span{padding:8px;border:1px solid rgba(89,210,245,.22);border-radius:9px;background:rgba(30,102,137,.13);font-size:10px}.guide kbd{color:#86edff;margin-right:7px}
+.j-scrim{position:fixed;inset:0;border:0;background:rgba(0,8,20,.52);pointer-events:auto;backdrop-filter:blur(2px)}.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100vw - 30px));max-height:min(82vh,620px);overflow:auto;min-height:210px;border-radius:22px;padding:20px;pointer-events:auto}.modal>.panel-close{position:absolute;right:12px;top:12px;width:32px;height:32px;border-radius:9px;border:1px solid #5fcde9;background:#0c4669}.modal>small{color:#68e8ff;font-size:8px;font-weight:900;letter-spacing:.15em}.modal h2{margin:4px 40px 14px 0;font-size:22px}.guide{display:grid;grid-template-columns:1fr 1fr;gap:8px}.guide span{padding:8px;border:1px solid rgba(89,210,245,.22);border-radius:9px;background:rgba(30,102,137,.13);font-size:10px}.guide kbd{color:#86edff;margin-right:7px}
+.panel-body{display:grid;gap:12px}.panel-copy,.panel-state{margin:0;color:#d2e9f4;font-size:11px;line-height:1.55}.panel-state{padding:13px;border:1px solid rgba(89,210,245,.23);border-radius:12px;background:rgba(27,96,133,.17)}.panel-state.error{border-color:rgba(255,111,133,.42);color:#ffb5c1}.panel-state.success{border-color:rgba(72,238,177,.45);color:#9dffd8}.panel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.panel-card{display:grid;gap:5px;min-width:0;padding:12px;border:1px solid rgba(89,210,245,.25);border-radius:12px;background:rgba(18,74,112,.22)}.panel-card strong{font-size:12px}.panel-card span,.panel-card small{overflow-wrap:anywhere;color:#bad6e6;font-size:9px;line-height:1.4}.panel-card b{color:#ffe176;font-size:10px}.panel-card .panel-action,.panel-action{position:static;width:auto;height:auto;margin-top:5px;padding:8px 10px;border:1px solid #55ddff;border-radius:9px;background:linear-gradient(145deg,#0a3c69,#087da1);font-size:9px;font-weight:900;text-align:center}.panel-action:hover,.panel-action:focus-visible{outline:2px solid #a6f5ff}.panel-action:disabled{cursor:wait;filter:saturate(.4);opacity:.65}.panel-map{position:relative;min-height:220px;overflow:hidden;border:1px solid rgba(83,225,255,.38);border-radius:15px;background:radial-gradient(circle at 50% 38%,rgba(37,202,204,.28),transparent 31%),linear-gradient(135deg,#0c496f,#071f39)}.panel-map:before,.panel-map:after{position:absolute;background:rgba(189,233,239,.19);content:""}.panel-map:before{left:0;right:0;top:45%;height:21px}.panel-map:after{top:0;bottom:0;left:47%;width:21px}.map-actions{position:relative;z-index:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:13px}.map-actions .panel-action{display:grid;gap:3px;margin:0;background:rgba(5,52,82,.88)}.map-actions small{color:#a9ccdd;font-size:7px}.quality-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.quality-grid .panel-action{margin:0}.quality-grid .panel-action.on{border-color:#76f3bb;background:linear-gradient(145deg,#07534c,#13916e);box-shadow:0 0 12px rgba(73,236,178,.25)}.shop-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.empty-state{padding:20px;text-align:center;color:#b8d4e3;font-size:11px}
 
 .jm{position:fixed;inset:0;z-index:1000;overflow:hidden;pointer-events:none;color:#f7fdff;font-family:Inter,Muli,system-ui,sans-serif;text-shadow:0 1px 3px #001326;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}.jm *{box-sizing:border-box}.jm button{color:inherit;font:inherit}.jm-surface{background:linear-gradient(145deg,rgba(4,19,44,.94),rgba(7,75,116,.88));border:1px solid rgba(82,224,255,.82);box-shadow:0 8px 24px rgba(0,0,0,.42),inset 0 0 18px rgba(76,216,255,.12);backdrop-filter:blur(7px)}
 .jm-profile{position:fixed;top:max(9px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));z-index:8;display:flex;align-items:center;gap:9px;width:min(218px,36vw);height:55px;padding:6px 12px 6px 51px;border-radius:15px 15px 24px 15px}.jm-avatar{position:absolute;left:-2px;display:grid;place-items:center;width:48px;height:48px;overflow:hidden;border:3px solid #7deaff;border-radius:50%;background:radial-gradient(circle at 35% 30%,#a56cff,#164b96 70%);box-shadow:0 0 0 3px rgba(138,81,255,.62),0 0 13px rgba(67,223,255,.8);font-size:18px;font-weight:900}.jm-avatar img{width:100%;height:100%;object-fit:cover}.jm-profile-copy{display:grid;min-width:0}.jm-profile-copy strong{overflow:hidden;font-size:12px;line-height:1.15;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}.jm-profile-copy span{overflow:hidden;color:#9ccbe5;font-size:8px;text-overflow:ellipsis;white-space:nowrap}.jm-profile-copy em{margin-top:2px;color:#6ff0c1;font-size:6px;font-style:normal;font-weight:900;letter-spacing:.1em}
@@ -47,11 +50,12 @@ const css = `
 .jm-actions{position:fixed;z-index:9;right:max(18px,calc(env(safe-area-inset-right) + 11px));bottom:max(23px,calc(env(safe-area-inset-bottom) + 14px));width:164px;height:142px;pointer-events:none}.jm-action{position:absolute;display:grid;place-items:center;padding:0;border-radius:50%;pointer-events:auto;touch-action:none;text-shadow:none}.jm-action span{display:grid;place-items:center}.jm-action strong{font-size:8px;text-transform:uppercase}.jm-jump{right:0;bottom:0;width:78px;height:78px;border:2px solid #64edff;background:radial-gradient(circle at 32% 25%,rgba(34,151,211,.97),rgba(5,42,82,.97));box-shadow:0 7px 18px rgba(0,0,0,.4),inset 0 0 15px rgba(124,239,255,.22)}.jm-run{left:8px;top:0;width:65px;height:65px;border:2px solid #c071ff;background:radial-gradient(circle at 32% 25%,rgba(127,73,204,.97),rgba(41,17,84,.97));box-shadow:0 7px 18px rgba(0,0,0,.4),inset 0 0 15px rgba(216,166,255,.18)}.jm-action:active,.jm-action[data-active="true"]{transform:scale(.91);filter:brightness(1.25)}
 .jm-social{position:fixed;z-index:9;bottom:max(13px,calc(env(safe-area-inset-bottom) + 6px));left:50%;display:flex;gap:7px;transform:translateX(-50%);pointer-events:auto}.jm-social button{display:flex;align-items:center;gap:5px;min-width:68px;height:39px;padding:0 9px;border:1px solid #48dfff;border-radius:13px;background:linear-gradient(145deg,rgba(5,31,65,.95),rgba(8,87,125,.94));box-shadow:0 6px 16px rgba(0,0,0,.36);font-size:8px;font-weight:900}.jm-social button:nth-child(2){border-color:#bd72ff;background:linear-gradient(145deg,rgba(45,20,91,.96),rgba(111,45,147,.94))}.jm-social button:active{transform:scale(.94)}
 .jm-status{position:fixed;z-index:7;right:max(11px,env(safe-area-inset-right));bottom:max(7px,env(safe-area-inset-bottom));color:rgba(194,234,247,.58);font-size:6px;font-weight:900;letter-spacing:.13em;pointer-events:none}
-.jm-scrim{position:fixed;inset:0;z-index:20;border:0;background:rgba(0,8,20,.6);pointer-events:auto;backdrop-filter:blur(3px)}.jm-modal{position:fixed;z-index:21;top:50%;left:50%;width:min(430px,calc(100vw - 32px));max-height:min(80vh,390px);overflow:auto;padding:17px;transform:translate(-50%,-50%);border-radius:20px;pointer-events:auto;touch-action:pan-y}.jm-modal>button{position:absolute;top:10px;right:10px;width:32px;height:32px;border:1px solid #65daf8;border-radius:10px;background:#0a4368;font-size:20px}.jm-modal small{color:#6ceaff;font-size:7px;font-weight:900;letter-spacing:.15em}.jm-modal h2{margin:4px 38px 12px 0;font-size:20px}.jm-guide{display:grid;grid-template-columns:1fr 1fr;gap:7px}.jm-guide span{display:flex;align-items:center;gap:7px;padding:8px;border:1px solid rgba(89,210,245,.25);border-radius:10px;background:rgba(30,102,137,.18);font-size:9px}.jm-guide b{display:grid;place-items:center;min-width:27px;height:27px;border-radius:50%;background:#0b628c;color:#8eefff}.jm-panel-copy{color:#d2e9f4;font-size:10px;line-height:1.5}
+.jm-scrim{position:fixed;inset:0;z-index:20;border:0;background:rgba(0,8,20,.6);pointer-events:auto;backdrop-filter:blur(3px)}.jm-modal{position:fixed;z-index:21;top:50%;left:50%;width:min(520px,calc(100vw - 32px));max-height:min(84vh,560px);overflow:auto;padding:17px;transform:translate(-50%,-50%);border-radius:20px;pointer-events:auto;touch-action:pan-y}.jm-modal>.panel-close{position:absolute;top:10px;right:10px;width:32px;height:32px;border:1px solid #65daf8;border-radius:10px;background:#0a4368;font-size:20px}.jm-modal>small{color:#6ceaff;font-size:7px;font-weight:900;letter-spacing:.15em}.jm-modal h2{margin:4px 38px 12px 0;font-size:20px}.jm-guide{display:grid;grid-template-columns:1fr 1fr;gap:7px}.jm-guide span{display:flex;align-items:center;gap:7px;padding:8px;border:1px solid rgba(89,210,245,.25);border-radius:10px;background:rgba(30,102,137,.18);font-size:9px}.jm-guide b{display:grid;place-items:center;min-width:27px;height:27px;border-radius:50%;background:#0b628c;color:#8eefff}.jm-panel-copy{color:#d2e9f4;font-size:10px;line-height:1.5}
 @media(max-width:900px){.prof{width:250px}.missions,.features{width:236px}.brand,.move{display:none}.chat{left:auto;right:12px;transform:none;width:270px}.dock button{min-width:62px}}
 @media(max-width:620px){.missions,.features{display:none}.prof{width:200px}.pc span{display:none}.wallet{min-width:100px}.rail{top:auto;bottom:78px;grid-template-columns:repeat(5,1fr)}.rail button{width:47px;height:45px}.rail strong,.rail kbd,.chat{display:none}}
 @media(orientation:portrait){.jm-profile{width:min(210px,55vw)}.jm-quick{top:max(71px,calc(env(safe-area-inset-top) + 62px));display:grid;grid-template-columns:repeat(2,43px)}.jm-look{top:15%;bottom:29%;left:24%}.jm-joystick{width:120px;height:120px}.jm-social{bottom:max(158px,calc(env(safe-area-inset-bottom) + 150px))}.jm-status{display:none}}
 @media(max-height:390px) and (orientation:landscape){.jm-profile{height:48px;width:190px;padding-left:45px}.jm-avatar{width:42px;height:42px}.jm-profile-copy strong{font-size:10px}.jm-quick{top:max(59px,calc(env(safe-area-inset-top) + 51px))}.jm-quick button{width:38px;height:38px}.jm-joystick{width:112px;height:112px}.jm-stick{width:52px;height:52px}.jm-actions{width:150px;height:122px}.jm-jump{width:70px;height:70px}.jm-run{width:58px;height:58px}.jm-social button{height:35px}.jm-status{display:none}}
+@media(max-width:520px){.panel-grid,.shop-list{grid-template-columns:1fr}.quality-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.map-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.panel-map{min-height:250px}}
 @media(prefers-reduced-motion:reduce){.jm *{transition:none!important}}
 `;
 
@@ -211,14 +215,50 @@ const MobileActions = () => {
   </section>;
 };
 
-const Panel = ({panel, setPanel, mobile}) => {
-  if (!panel) return null;
-  const title = {map: 'Mapa da cidade', daily: 'Daily Jarvis', shop: 'Loja Jarvis', guide: 'Como jogar', events: 'Eventos Jarvis', settings: 'Configurações'}[panel];
-  if (!mobile) return <section className="modal jp"><button onClick={() => setPanel(null)}>×</button><small>JARVIS WORLD</small><h2>{title}</h2>{panel === 'guide' ? <div className="guide"><span><kbd>WASD</kbd>Mover</span><span><kbd>SHIFT</kbd>Correr</span><span><kbd>ESPAÇO</kbd>Pular</span><span><kbd>Q</kbd>Emotes</span><span><kbd>ENTER</kbd>Chat</span><span><kbd>'</kbd>Câmera</span></div> : <p>Conteúdo integrado ao Jarvis World.</p>}</section>;
-  return <><button type="button" className="jm-scrim" aria-label="Fechar painel" onClick={() => setPanel(null)}/><section className="jm-modal jm-surface"><button type="button" onClick={() => setPanel(null)} aria-label="Fechar">×</button><small>JARVIS WORLD · MOBILE</small><h2>{title}</h2>{panel === 'guide' ? <div className="jm-guide"><span><b>◉</b>Mover</span><span><b><I name="compass" size={15}/></b>Olhar</span><span><b><I name="run" size={16}/></b>Correr</span><span><b><I name="jump" size={16}/></b>Pular</span><span><b><I name="smile" size={16}/></b>Emotes</span><span><b><I name="chat" size={16}/></b>Chat</span></div> : <p className="jm-panel-copy">Conteúdo integrado ao Jarvis World. Use os atalhos do HUD para acessar esta área sem sair da cidade.</p>}</section></>;
+const locations = [
+  ['plaza', 'Jarvis Plaza', 'Ponto central'],
+  ['shop', 'Loja', 'Skins e itens'],
+  ['daily', 'Daily', 'Recompensa diária'],
+  ['events', 'Eventos', 'Centro de eventos'],
+  ['arcade', 'Arcade', 'Minijogos'],
+  ['casino', 'Cassino', 'Jogos Jarvis'],
+  ['arena', 'Arena', 'Competições'],
+];
+const qualityOptions = [['auto', 'Auto'], ['low', 'Baixo'], ['medium', 'Médio'], ['high', 'Alto']];
+const getShopItems = remote => Array.isArray(remote?.data?.shop?.items) ? remote.data.shop.items : [];
+const itemName = (item, index) => item?.name || item?.title || item?.label || item?.id || `Item ${index + 1}`;
+const itemPrice = item => item?.price ?? item?.cost ?? item?.value ?? null;
+
+const PanelBody = ({panel, remote, quality, operation, onQuality, onTravel}) => {
+  if (panel === 'map') return <div className="panel-body"><p className="panel-copy">Escolha um destino para viajar dentro da cidade.</p><div className="panel-map"><div className="map-actions">{locations.map(([id, name, description]) => <button type="button" className="panel-action" key={id} disabled={operation.status === 'loading'} onClick={() => onTravel(id)}><strong>{name}</strong><small>{description}</small></button>)}</div></div>{operation.message && <p className={`panel-state ${operation.status}`}>{operation.message}</p>}</div>;
+  if (panel === 'guide') return <div className="guide"><span><kbd>WASD</kbd>Mover</span><span><kbd>SHIFT</kbd>Correr</span><span><kbd>ESPAÇO</kbd>Pular</span><span><kbd>Q</kbd>Emotes</span><span><kbd>ENTER</kbd>Chat</span><span><kbd>'</kbd>Câmera</span></div>;
+  if (panel === 'settings') return <div className="panel-body"><div className="panel-card"><strong>Qualidade gráfica</strong><span>Reduz a resolução interna e a distância de carregamento da cidade em aparelhos mais fracos.</span><div className="quality-grid">{qualityOptions.map(([id, label]) => <button type="button" key={id} className={`panel-action ${quality === id ? 'on' : ''}`} disabled={operation.status === 'loading'} aria-pressed={quality === id} onClick={() => onQuality(id)}>{label}</button>)}</div></div><div className="panel-card"><strong>Conta protegida</strong><span>Perfil, moedas e permissões são validados pelo backend do Jarvis e pela sessão do Discord.</span></div>{operation.message && <p className={`panel-state ${operation.status}`}>{operation.message}</p>}</div>;
+  if (panel === 'events') return <div className="panel-body"><p className="panel-copy">Acesse os locais de temporadas, encontros e competições da comunidade.</p><div className="panel-grid"><div className="panel-card"><strong>Centro de Eventos</strong><span>Ponto oficial de encontros e conteúdos temporários.</span><button type="button" className="panel-action" disabled={operation.status === 'loading'} onClick={() => onTravel('events')}>IR AGORA</button></div><div className="panel-card"><strong>Arena</strong><span>Área reservada para disputas e atividades competitivas.</span><button type="button" className="panel-action" disabled={operation.status === 'loading'} onClick={() => onTravel('arena')}>IR AGORA</button></div></div>{operation.message && <p className={`panel-state ${operation.status}`}>{operation.message}</p>}</div>;
+  if (panel === 'daily') {
+    if (remote.status === 'loading') return <p className="panel-state">Carregando sua recompensa diária...</p>;
+    if (remote.status === 'error') return <p className="panel-state error">{remote.error}</p>;
+    const daily = remote.data?.daily;
+    return <div className="panel-body"><div className="panel-card"><strong>{daily?.eligible ? 'Recompensa disponível' : 'Daily já coletado'}</strong><span>{daily?.eligible ? 'Vá ao terminal Daily da Jarvis Plaza para resgatar com segurança.' : 'Volte no próximo período para uma nova recompensa.'}</span>{daily?.reward != null && <b>Recompensa: {String(daily.reward)}</b>}<button type="button" className="panel-action" disabled={operation.status === 'loading'} onClick={() => onTravel('daily')}>IR AO TERMINAL DAILY</button></div>{operation.message && <p className={`panel-state ${operation.status}`}>{operation.message}</p>}</div>;
+  }
+  if (panel === 'shop') {
+    if (remote.status === 'loading') return <p className="panel-state">Carregando o catálogo oficial...</p>;
+    if (remote.status === 'error') return <p className="panel-state error">{remote.error}</p>;
+    const items = getShopItems(remote);
+    return <div className="panel-body"><p className="panel-copy">{remote.data?.shop?.total ?? items.length} itens disponíveis. Compras são confirmadas pelo servidor Jarvis.</p>{items.length ? <div className="shop-list">{items.slice(0, 8).map((item, index) => <div className="panel-card" key={item?.id || index}><strong>{itemName(item, index)}</strong>{item?.description && <span>{String(item.description)}</span>}{itemPrice(item) != null && <b>{new Intl.NumberFormat('pt-BR').format(Number(itemPrice(item)) || 0)} JC</b>}</div>)}</div> : <div className="empty-state">O catálogo está vazio neste momento.</div>}<button type="button" className="panel-action" disabled={operation.status === 'loading'} onClick={() => onTravel('shop')}>VISITAR A LOJA</button>{operation.message && <p className={`panel-state ${operation.status}`}>{operation.message}</p>}</div>;
+  }
+  return <p className="panel-state error">Este painel não está disponível.</p>;
 };
 
-const MobileHud = ({identity, chat, open, panel, setPanel}) => {
+const Panel = ({panel, setPanel, mobile, remote, quality, operation, onQuality, onTravel}) => {
+  if (!panel) return null;
+  const title = {map: 'Mapa da cidade', daily: 'Daily Jarvis', shop: 'Loja Jarvis', guide: 'Como jogar', events: 'Eventos Jarvis', settings: 'Configurações'}[panel];
+  const body = <PanelBody panel={panel} remote={remote} quality={quality} operation={operation} onQuality={onQuality} onTravel={onTravel}/>;
+  const stopGameInput = event => event.stopPropagation();
+  if (!mobile) return <><button type="button" className="j-scrim" aria-label="Fechar painel" onClick={() => setPanel(null)}/><section className="modal jp" aria-live="polite" onPointerDown={stopGameInput}><button type="button" className="panel-close" onClick={() => setPanel(null)} aria-label="Fechar">×</button><small>JARVIS WORLD</small><h2>{title}</h2>{body}</section></>;
+  return <><button type="button" className="jm-scrim" aria-label="Fechar painel" onClick={() => setPanel(null)}/><section className="jm-modal jm-surface" aria-live="polite" onPointerDown={stopGameInput}><button type="button" className="panel-close" onClick={() => setPanel(null)} aria-label="Fechar">×</button><small>JARVIS WORLD · MOBILE</small><h2>{title}</h2>{body}</section></>;
+};
+
+const MobileHud = ({identity, chat, open, panel, setPanel, remote, quality, operation, onQuality, onTravel}) => {
   const name = identity?.profile?.display_name || identity?.user?.display_name || identity?.user?.username || 'Jogador';
   const username = identity?.user?.username || 'jarvis';
   const avatar = identity?.profile?.avatar_url || identity?.user?.avatar_url || '';
@@ -229,11 +269,11 @@ const MobileHud = ({identity, chat, open, panel, setPanel}) => {
     <section className="jm-quick" aria-label="Menu rápido">{mobileNav.map(([id, icon, label]) => <button type="button" key={id} className={panel === id ? 'on' : ''} onClick={() => open(id)} aria-label={label} aria-pressed={panel === id}><I name={icon} size={21}/></button>)}</section>
     <MobileLookZone/><MobileJoystick/><MobileActions/>
     <section className="jm-social" aria-label="Ações sociais"><button type="button" onClick={chat}><I name="chat" size={18}/> CHAT</button><button type="button" onClick={() => window.dispatchEvent(new Event('jarvis-open-emotes'))}><I name="smile" size={18}/> EMOTES</button></section>
-    <span className="jm-status">JARVIS WORLD · TOUCH</span><Panel panel={panel} setPanel={setPanel} mobile/>
+    <span className="jm-status">JARVIS WORLD · TOUCH</span><Panel panel={panel} setPanel={setPanel} mobile remote={remote} quality={quality} operation={operation} onQuality={onQuality} onTravel={onTravel}/>
   </nav>;
 };
 
-const DesktopHud = ({identity, chat, open, panel, setPanel}) => {
+const DesktopHud = ({identity, chat, open, panel, setPanel, remote, quality, operation, onQuality, onTravel}) => {
   const name = identity?.profile?.display_name || identity?.user?.display_name || identity?.user?.username || 'Jogador';
   const username = identity?.user?.username || 'jarvis';
   const avatar = identity?.profile?.avatar_url || identity?.user?.avatar_url || '';
@@ -247,7 +287,7 @@ const DesktopHud = ({identity, chat, open, panel, setPanel}) => {
     <section className="brand"><span><I name="crown" size={30}/></span><strong>JARVIS WORLD</strong><small>JARVIS CITY</small><em>JOGUE · EXPLORE · FAÇA AMIGOS</em></section>
     <section className="dock"><button onClick={chat}><span><I name="chat" size={25}/></span><strong>Chat</strong><kbd>T</kbd></button><button onClick={() => window.dispatchEvent(new Event('jarvis-open-emotes'))}><span><I name="smile" size={25}/></span><strong>Emotes</strong><kbd>Q</kbd></button><button onClick={() => open('guide')}><span><I name="map" size={25}/></span><strong>Guia</strong><kbd>G</kbd></button></section>
     <button className="chat" onClick={chat}><span><I name="chat" size={18}/></span><em>Digite uma mensagem...</em><b>›</b></button>
-    <section className="move"><div><span><I name="run" size={30}/></span><strong>Correr</strong><kbd>SHIFT</kbd></div><div><span><I name="jump" size={30}/></span><strong>Pular</strong><kbd>ESPAÇO</kbd></div></section><Panel panel={panel} setPanel={setPanel}/>
+    <section className="move"><div><span><I name="run" size={30}/></span><strong>Correr</strong><kbd>SHIFT</kbd></div><div><span><I name="jump" size={30}/></span><strong>Pular</strong><kbd>ESPAÇO</kbd></div></section><Panel panel={panel} setPanel={setPanel} remote={remote} quality={quality} operation={operation} onQuality={onQuality} onTravel={onTravel}/>
   </nav>;
 };
 
@@ -255,10 +295,66 @@ export default function JarvisPremiumHud() {
   const {state, setState} = useContext(AppContext);
   const identity = useContext(JarvisIdentityContext);
   const [panel, setPanel] = useState(null);
+  const [remote, setRemote] = useState({panel: null, status: 'idle', data: null, error: ''});
+  const [quality, setQuality] = useState(getSavedGraphicsQuality);
+  const [operation, setOperation] = useState({status: 'idle', message: ''});
   const mobile = useMobileDevice();
   const chatOpen = state.openedPanel === 'ChatPanel';
   const chat = () => { setPanel(null); setState({openedPanel: chatOpen ? null : 'ChatPanel'}); };
-  const open = id => id === 'social' ? chat() : setPanel(panel === id ? null : id);
+  const open = async id => {
+    if (id === 'social') return chat();
+    const nextPanel = panel === id ? null : id;
+    setPanel(nextPanel);
+    setOperation({status: 'idle', message: ''});
+    if (nextPanel !== 'daily' && nextPanel !== 'shop') return;
+    setRemote({panel: nextPanel, status: 'loading', data: null, error: ''});
+    try {
+      const data = nextPanel === 'daily' ? await activityApi.daily() : await activityApi.shop();
+      setRemote({panel: nextPanel, status: 'ready', data, error: ''});
+    } catch (error) {
+      setRemote({panel: nextPanel, status: 'error', data: null, error: error?.message || 'Serviço temporariamente indisponível.'});
+    }
+  };
+  const travel = async location => {
+    setOperation({status: 'loading', message: 'Preparando viagem rápida...'});
+    try {
+      const result = await teleportToLocation(location);
+      setOperation({status: 'success', message: `Destino definido: ${result.name}.`});
+      setPanel(null);
+    } catch (error) {
+      setOperation({status: 'error', message: error?.message || 'Não foi possível viajar agora.'});
+    }
+  };
+  const changeQuality = async nextQuality => {
+    setQuality(nextQuality);
+    setOperation({status: 'loading', message: 'Aplicando qualidade gráfica...'});
+    try {
+      await setGraphicsQuality(nextQuality);
+      const label = qualityOptions.find(([id]) => id === nextQuality)?.[1] || nextQuality;
+      setOperation({status: 'success', message: `Qualidade ${label} aplicada e salva neste dispositivo.`});
+    } catch (error) {
+      setOperation({status: 'error', message: error?.message || 'Não foi possível aplicar a qualidade.'});
+    }
+  };
+  useEffect(() => {
+    void setGraphicsQuality(quality).catch(error => console.warn('[Jarvis World] saved graphics quality was not applied:', error));
+  }, []);
+  useEffect(() => {
+    if (mobile) return undefined;
+    const onKeyDown = event => {
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+      const tag = event.target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || event.target?.isContentEditable) return;
+      if (event.key === 'Escape' && panel) {
+        setPanel(null);
+        return;
+      }
+      const id = {m: 'map', d: 'daily', l: 'shop', g: 'guide', p: 'social'}[event.key.toLowerCase()];
+      if (id) void open(id);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [mobile, panel, chatOpen]);
   useEffect(() => {
     if (!mobile) return undefined;
     const release = () => {
@@ -269,5 +365,6 @@ export default function JarvisPremiumHud() {
     document.addEventListener('visibilitychange', release);
     return () => { release(); window.removeEventListener('blur', release); document.removeEventListener('visibilitychange', release); };
   }, [mobile]);
-  return mobile ? <MobileHud identity={identity} chat={chat} open={open} panel={panel} setPanel={setPanel}/> : <DesktopHud identity={identity} chat={chat} open={open} panel={panel} setPanel={setPanel}/>;
+  const panelProps = {identity, chat, open, panel, setPanel, remote, quality, operation, onQuality: changeQuality, onTravel: travel};
+  return mobile ? <MobileHud {...panelProps}/> : <DesktopHud {...panelProps}/>;
 }

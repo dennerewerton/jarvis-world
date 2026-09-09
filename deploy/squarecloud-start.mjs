@@ -56,6 +56,7 @@ const installMobileRuntimeProxies = () => {
   const ioProxyPath = path.join(runtimeRoot, 'jarvis-mobile-io-proxy.js');
   const gameProxyPath = path.join(runtimeRoot, 'jarvis-mobile-game-proxy.js');
   const cameraProxyPath = path.join(runtimeRoot, 'jarvis-mobile-camera-proxy.js');
+  const worldActionsProxyPath = path.join(runtimeRoot, 'jarvis-world-actions-proxy.js');
 
   fs.writeFileSync(ioProxyPath, `let runtime = null;
 let runtimePromise = null;
@@ -150,7 +151,97 @@ export default {
 };
 `, 'utf8');
 
-  console.log('[Jarvis World] installed lazy mobile gameplay runtime proxies.');
+  fs.writeFileSync(worldActionsProxyPath, `const QUALITY_STORAGE_KEY = 'jarvis-world-graphics-quality';
+const QUALITY_VALUES = new Set(['auto', 'low', 'medium', 'high']);
+const LOCATIONS = Object.freeze({
+  plaza: {name: 'Jarvis Plaza', position: [-12.56, 2.1, 22]},
+  shop: {name: 'Loja Jarvis', position: [10, 2.1, 14]},
+  daily: {name: 'Terminal Daily', position: [-7, 2.1, 25]},
+  events: {name: 'Centro de Eventos', position: [-34, 2.1, 14]},
+  arcade: {name: 'Arcade', position: [8, 2.1, -14]},
+  casino: {name: 'Cassino', position: [-34, 2.1, -14]},
+  arena: {name: 'Arena', position: [34, 2.1, -38]},
+});
+
+export const getSavedGraphicsQuality = () => {
+  try {
+    const saved = window.localStorage.getItem(QUALITY_STORAGE_KEY);
+    return QUALITY_VALUES.has(saved) ? saved : 'auto';
+  } catch {
+    return 'auto';
+  }
+};
+
+const findCityApp = world => {
+  let cityApp = null;
+  for (const root of world.appManager.getApps()) {
+    root.traverse?.(node => {
+      if (!cityApp && node?.getComponent?.('citySource') === 'ithappy-cartoon-city-free-v1') cityApp = node;
+    });
+    if (cityApp) break;
+  }
+  return cityApp;
+};
+
+const waitForCityApp = async world => {
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const cityApp = findCityApp(world);
+    if (cityApp) return cityApp;
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  return null;
+};
+
+export const setGraphicsQuality = async quality => {
+  if (!QUALITY_VALUES.has(quality)) throw new Error('Qualidade gráfica inválida.');
+  try { window.localStorage.setItem(QUALITY_STORAGE_KEY, quality); } catch {}
+  document.documentElement.dataset.jarvisQuality = quality;
+
+  const [{world}, rendererModule] = await Promise.all([
+    import('./world.js'),
+    import('./renderer.js'),
+  ]);
+  const renderer = rendererModule.getRenderer?.();
+  if (renderer?.setPixelRatio) {
+    const deviceRatio = Math.max(1, Number(window.devicePixelRatio) || 1);
+    const ratio = quality === 'low' ? Math.min(deviceRatio, 1) * 0.7
+      : quality === 'medium' ? Math.min(deviceRatio, 1)
+      : quality === 'high' ? Math.min(deviceRatio, 1.5)
+      : Math.min(deviceRatio, /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ? 1 : 1.25);
+    renderer.setPixelRatio(Math.max(0.65, ratio));
+  }
+  const cityApp = await waitForCityApp(world);
+  if (!cityApp) throw new Error('A cidade ainda está carregando. Tente novamente em alguns segundos.');
+  cityApp.setComponent('cityQuality', quality);
+  return {quality};
+};
+
+export const teleportToLocation = async locationId => {
+  const target = LOCATIONS[locationId];
+  if (!target) throw new Error('Destino desconhecido.');
+  const [{playersManager}, THREE, ioModule] = await Promise.all([
+    import('./players-manager.js'),
+    import('three'),
+    import('./io-manager.js'),
+  ]);
+  const player = playersManager.getLocalPlayer();
+  if (!player?.setSpawnPoint) throw new Error('O personagem ainda está carregando.');
+  const keys = ioModule.default?.keys;
+  if (keys) {
+    keys.up = false; keys.down = false; keys.left = false;
+    keys.right = false; keys.shift = false; keys.space = false;
+  }
+  player.setSpawnPoint(
+    new THREE.Vector3(...target.position),
+    new THREE.Quaternion(0, 0, 0, 1),
+  );
+  player.characterPhysics?.reset?.();
+  player.updateMatrixWorld?.();
+  return {id: locationId, name: target.name};
+};
+`, 'utf8');
+
+  console.log('[Jarvis World] installed lazy gameplay, menu and mobile runtime proxies.');
 };
 
 const applyPremiumHudOverride = () => {
@@ -161,10 +252,12 @@ const applyPremiumHudOverride = () => {
   let hudSource = fs.readFileSync(sourceUrl, 'utf8');
   const replacements = [
     ["../../.webaverse-runtime/src/components/app", './components/app'],
+    ["../../.webaverse-runtime/src/jarvis-compat/activity-api.mjs", './jarvis-compat/activity-api.mjs'],
     ["../../.webaverse-runtime/src/jarvis-compat/ActivityShell.jsx", './jarvis-compat/ActivityShell.jsx'],
     ["../../.webaverse-runtime/io-manager.js", '../jarvis-mobile-io-proxy.js'],
     ["../../.webaverse-runtime/game.js", '../jarvis-mobile-game-proxy.js'],
     ["../../.webaverse-runtime/camera-manager.js", '../jarvis-mobile-camera-proxy.js'],
+    ["../../.webaverse-runtime/jarvis-world-actions-proxy.js", '../jarvis-world-actions-proxy.js'],
   ];
   for (const [from, to] of replacements) {
     if (!hudSource.includes(from)) {
