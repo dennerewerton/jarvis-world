@@ -26,22 +26,26 @@ const stabilizeWorldStartup = () => {
   }
   fs.writeFileSync(universePath, universeSource, 'utf8');
 
+  // Awaiting the scene load is useful for diagnostics, but App.jsx is rewritten by
+  // several validated runtime patches and its whitespace/body can legitimately vary.
+  // Never make the deploy depend on an exact source-text match. Local city routing
+  // above is the actual white-screen recovery; this instrumentation is best-effort.
   let appSource = fs.readFileSync(appPath, 'utf8');
-  const oldWorldStartup = `  universe.handleUrlUpdate();\n  await weba.startLoop();`;
-  const newWorldStartup = `  const jarvisWorldLoadPromise = universe.handleUrlUpdate();\n  await weba.startLoop();\n  await jarvisWorldLoadPromise;`;
-
-  // Upstream fire-and-forgets handleUrlUpdate(). That lets a scene-load rejection
-  // escape the existing _startApp(...).catch(...) diagnostics while the HUD keeps
-  // rendering. Preserve the parallel render-loop start, but await the world promise
-  // before avatar binding so failures are reported instead of becoming a white city.
-  if (appSource.includes(oldWorldStartup)) {
-    appSource = appSource.replace(oldWorldStartup, newWorldStartup);
-  } else if (!appSource.includes('await jarvisWorldLoadPromise;')) {
-    throw new Error('Unable to locate Webaverse world startup sequence in App.jsx');
+  if (!appSource.includes('await jarvisWorldLoadPromise;')) {
+    const worldStartupPattern = /universe\.handleUrlUpdate\(\);\s*await weba\.startLoop\(\);/;
+    if (worldStartupPattern.test(appSource)) {
+      appSource = appSource.replace(
+        worldStartupPattern,
+        'const jarvisWorldLoadPromise = universe.handleUrlUpdate();\n    await weba.startLoop();\n    await jarvisWorldLoadPromise;',
+      );
+      fs.writeFileSync(appPath, appSource, 'utf8');
+      console.log('[Jarvis World] world-load diagnostics attached to App.jsx startup.');
+    } else {
+      console.warn('[Jarvis World] App.jsx world-load diagnostics skipped; deterministic local city routing remains active.');
+    }
   }
-  fs.writeFileSync(appPath, appSource, 'utf8');
 
-  console.log('[Jarvis World] deterministic local city startup installed; world-load failures now propagate to Activity diagnostics.');
+  console.log('[Jarvis World] deterministic local city routing installed before HUD/camera overrides.');
 };
 
 const installMobileRuntimeProxies = () => {

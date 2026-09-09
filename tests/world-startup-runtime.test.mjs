@@ -10,10 +10,10 @@ test('Activity boots the authored city locally instead of waiting on the WSRTC r
   assert.match(launcher, /universeSource = universeSource\.replace\(multiplayerWorldSpec, localWorldSpec\)/);
 });
 
-test('world loading remains parallel with loop start but failures are awaited', () => {
-  assert.match(launcher, /const jarvisWorldLoadPromise = universe\.handleUrlUpdate\(\)/);
-  assert.match(launcher, /await weba\.startLoop\(\)/);
-  assert.match(launcher, /await jarvisWorldLoadPromise/);
+test('App world-load diagnostics never block deployment when patched source differs', () => {
+  assert.match(launcher, /const worldStartupPattern = \/universe\\\.handleUrlUpdate/);
+  assert.match(launcher, /App\.jsx world-load diagnostics skipped/);
+  assert.doesNotMatch(launcher, /throw new Error\('Unable to locate Webaverse world startup sequence in App\.jsx'\)/);
 });
 
 test('world startup stabilization runs before HUD and camera overrides', () => {
