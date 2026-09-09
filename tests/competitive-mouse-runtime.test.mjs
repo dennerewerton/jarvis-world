@@ -14,18 +14,20 @@ test('competitive camera uses Pointer Lock and never edge-steers', () => {
   assert.doesNotMatch(source, /requestAnimationFrame\(tick\)/);
 });
 
-test('mouse deltas use CS-style sensitivity semantics without smoothing', () => {
+test('mouse deltas use CS-style sensitivity semantics without smoothing or duplicate rotation', () => {
   assert.match(source, /SOURCE_DEGREES_PER_COUNT = 0\.022/);
   assert.match(source, /WEBAVERSE_DEGREES_PER_COUNT = 0\.18/);
   assert.match(source, /DEFAULT_SENSITIVITY = 2\.0/);
   assert.match(source, /movementX: movementX \* scale/);
   assert.match(source, /movementY: movementY \* scale/);
+  assert.match(source, /event\.stopImmediatePropagation\(\)/);
 });
 
 test('sensitivity is persistent and can be integrated into Settings later', () => {
   assert.match(source, /jarvis\.mouseSensitivity/);
   assert.match(source, /window\.jarvisMouseLook/);
   assert.match(source, /jarvis:set-mouse-sensitivity/);
+  assert.match(source, /enable: enablePointerLock/);
 });
 
 test('world canvas click captures mouse while HUD clicks stay interactive', () => {
