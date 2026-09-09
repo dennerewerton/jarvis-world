@@ -41,9 +41,10 @@ test('safe Activity mode also supports right-drag Pointer Capture at edges', () 
   assert.match(source, /releasePointerCapture/);
 });
 
-test('quote focus hides the normal cursor on canvas without crosshair', () => {
+test('quote focus hides the normal cursor on canvas without a crosshair cursor', () => {
   assert.match(source, /setCanvasCursor\('none'\)/);
-  assert.doesNotMatch(source, /crosshair/);
+  assert.doesNotMatch(source, /setCanvasCursor\(['"]crosshair['"]\)/);
+  assert.doesNotMatch(source, /style\.cursor\s*=\s*['"]crosshair['"]/);
 });
 
 test('sensitivity is persistent and exposed for Settings integration', () => {
