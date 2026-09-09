@@ -2,24 +2,26 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const source = fs.readFileSync('deploy/runtime-overrides/jarvis-camera-runtime.js', 'utf8');
+const patch = fs.readFileSync('patches/0072-toggle-game-camera-with-quote.patch', 'utf8');
+const override = fs.readFileSync('deploy/runtime-overrides/jarvis-camera-runtime.js', 'utf8');
 
-test('camera bridge never renders a crosshair or custom cursor', () => {
-  assert.doesNotMatch(source, /crosshair/);
-  assert.doesNotMatch(source, /style\.cursor/);
-  assert.doesNotMatch(source, /setCanvasCursor/);
-  assert.doesNotMatch(source, /setGlobalCursor/);
+test('Jarvis does not render a crosshair or custom cursor for camera focus', () => {
+  assert.doesNotMatch(override, /style\.cursor/);
+  assert.doesNotMatch(override, /setCanvasCursor/);
+  assert.doesNotMatch(override, /setGlobalCursor/);
+  assert.doesNotMatch(override, /setPointerCapture/);
 });
 
-test('cursor confinement is owned by canonical native Pointer Lock', () => {
-  assert.match(source, /cameraManager\.requestPointerLock\(\)/);
-  assert.match(source, /cameraManager\.exitPointerLock\(\)/);
-  assert.match(source, /cameraManager\?\.pointerLockElement/);
+test('cursor confinement is owned by Webaverse cameraManager pointer lock', () => {
+  assert.match(patch, /cameraManager\.requestPointerLock\(\)/);
+  assert.match(patch, /cameraManager\.exitPointerLock\(\)/);
+  assert.match(patch, /cameraManager\.pointerLockElement/);
 });
 
-test('no pointer-capture or edge-steering fallback remains', () => {
-  assert.doesNotMatch(source, /setPointerCapture/);
-  assert.doesNotMatch(source, /releasePointerCapture/);
-  assert.doesNotMatch(source, /\bedgeFactor\b/);
-  assert.doesNotMatch(source, /requestAnimationFrame\(tick\)/);
+test('no soft-focus, pointer-capture, or edge-steering fallback remains in the standalone override', () => {
+  assert.doesNotMatch(override, /jarvisCameraFocus/);
+  assert.doesNotMatch(override, /setPointerCapture/);
+  assert.doesNotMatch(override, /releasePointerCapture/);
+  assert.doesNotMatch(override, /\bedgeFactor\b/);
+  assert.doesNotMatch(override, /requestAnimationFrame\(tick\)/);
 });
