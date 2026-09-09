@@ -4,52 +4,38 @@ import test from 'node:test';
 
 const source = fs.readFileSync('deploy/runtime-overrides/jarvis-camera-runtime.js', 'utf8');
 
-test('embedded Discord Activities never call native Pointer Lock', () => {
-  assert.match(source, /const isEmbeddedActivity = \(\) =>/);
-  assert.match(source, /if \(isEmbeddedActivity\(\)\) \{\s*setKeyboardFocused\(true\);/s);
-  assert.match(source, /requestPointerLock\(\{unadjustedMovement: true\}\)/);
+test('quote/backquote delegates to the canonical Webaverse camera manager', () => {
+  assert.match(source, /manager\.requestPointerLock\(\)/);
+  assert.match(source, /manager\.exitPointerLock\(\)/);
+  assert.match(source, /manager\.pointerLockElement/);
+  assert.match(source, /toggleCanonicalPointerLock/);
 });
 
-test('competitive camera never edge-steers or rotates autonomously', () => {
+test('bridge never implements its own native Pointer Lock or mouse delta loop', () => {
+  assert.doesNotMatch(source, /\.requestPointerLock\(\{unadjustedMovement/);
+  assert.doesNotMatch(source, /movementX:/);
+  assert.doesNotMatch(source, /movementY:/);
+  assert.doesNotMatch(source, /handleMouseMove/);
+  assert.doesNotMatch(source, /setPointerCapture/);
+});
+
+test('edge steering, soft focus, and custom sensitivity stay removed', () => {
   assert.doesNotMatch(source, /\bedgeFactor\b/);
   assert.doesNotMatch(source, /\bedgeX\b/);
   assert.doesNotMatch(source, /\bedgeY\b/);
+  assert.doesNotMatch(source, /jarvisCameraFocus/);
+  assert.doesNotMatch(source, /SOURCE_DEGREES_PER_COUNT/);
   assert.doesNotMatch(source, /requestAnimationFrame\(tick\)/);
 });
 
-test('mouse deltas use CS-style sensitivity semantics without smoothing or duplicate rotation', () => {
-  assert.match(source, /SOURCE_DEGREES_PER_COUNT = 0\.022/);
-  assert.match(source, /WEBAVERSE_DEGREES_PER_COUNT = 0\.18/);
-  assert.match(source, /DEFAULT_SENSITIVITY = 2\.0/);
-  assert.match(source, /movementX: dx \* scale/);
-  assert.match(source, /movementY: dy \* scale/);
+test('legacy patched quote handler is suppressed before io-manager sees it', () => {
   assert.match(source, /event\.stopImmediatePropagation\(\)/);
+  assert.match(source, /event\.preventDefault\(\)/);
+  assert.match(source, /isQuoteToggle/);
 });
 
-test('quote key restores keyboard-focused camera look inside Discord', () => {
-  assert.match(source, /const isQuoteToggle = event =>/);
-  assert.match(source, /toggleFocus\(\)/);
-  assert.match(source, /setKeyboardFocused\(true\)/);
-  assert.match(source, /const keyboardLook = keyboardFocused/);
-  assert.match(source, /if \(isEmbeddedActivity\(\) && !dragging && !keyboardLook\) return;/);
-});
-
-test('safe Activity mode also supports right-drag Pointer Capture at edges', () => {
-  assert.match(source, /setPointerCapture/);
-  assert.match(source, /dragPointerId/);
-  assert.match(source, /event\.button === 2/);
-  assert.match(source, /releasePointerCapture/);
-});
-
-test('quote focus hides the normal cursor on canvas without a crosshair cursor', () => {
-  assert.match(source, /setCanvasCursor\('none'\)/);
-  assert.doesNotMatch(source, /setCanvasCursor\(['"]crosshair['"]\)/);
-  assert.doesNotMatch(source, /style\.cursor\s*=\s*['"]crosshair['"]/);
-});
-
-test('sensitivity is persistent and exposed for Settings integration', () => {
-  assert.match(source, /jarvis\.mouseSensitivity/);
-  assert.match(source, /window\.jarvisMouseLook/);
-  assert.match(source, /jarvis:set-mouse-sensitivity/);
-  assert.match(source, /isKeyboardFocused/);
+test('camera manager is prewarmed only after interactive page activity', () => {
+  assert.match(source, /window\.addEventListener\('load', prewarm/);
+  assert.match(source, /window\.addEventListener\('pointermove', prewarm/);
+  assert.doesNotMatch(source, /^import .*camera-manager/m);
 });
