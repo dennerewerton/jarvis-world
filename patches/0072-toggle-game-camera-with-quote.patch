@@ -1,7 +1,7 @@
 diff --git a/io-manager.js b/io-manager.js
 --- a/io-manager.js
 +++ b/io-manager.js
-@@ -593,10 +593,21 @@ ioManager.keydown = e => {
+@@ -593,10 +593,23 @@ ioManager.keydown = e => {
      } */
      case 74: // J
      case 27: // esc
@@ -26,7 +26,7 @@ diff --git a/io-manager.js b/io-manager.js
    }
  };
  ioManager.keypress = e => {
-@@ -701,7 +712,7 @@ ioManager.mousemove = e => {
+@@ -701,7 +714,7 @@ ioManager.mousemove = e => {
    /* if (game.weaponWheel) {
      game.updateWeaponWheel(e);
    } else { */
